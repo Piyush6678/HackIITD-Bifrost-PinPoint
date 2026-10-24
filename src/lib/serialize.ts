@@ -60,7 +60,21 @@ export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
     aiSuggestion: issue.aiSuggestion ?? null,
     // How far from the issue the officer stood when they took the after-photo.
     fix: issue.fix?.at
-      ? { at: issue.fix.at, distance: issue.fix.distance, accuracy: issue.fix.accuracy, note: issue.fix.note ?? null }
+      ? {
+          at: issue.fix.at,
+          distance: issue.fix.distance,
+          accuracy: issue.fix.accuracy,
+          note: issue.fix.note ?? null,
+          // Advisory only; residents' votes decide.
+          aiCheck: issue.fix.ai?.summary
+            ? {
+                samePlace: issue.fix.ai.samePlace,
+                looksFixed: issue.fix.ai.looksFixed,
+                confidence: issue.fix.ai.confidence,
+                summary: issue.fix.ai.summary,
+              }
+            : null,
+        }
       : null,
     verification: serializeVerification(issue),
     // Only the viewer's own vote. Who else voted is never public.

@@ -39,9 +39,9 @@ We are building in phases. This README documents what exists today.
 | **12** | **Officer marks a fix with an on-site, GPS-checked after-photo** | **Done** |
 | **13** | **Verification API: 3 nearby residents confirm or reject** | **Done** |
 | **14** | **Verification screen: before/after, distance check, "Check fixes near you"** | **Done** |
-| 15 | Gemini: tagging reports and checking before/after photos | Next |
-| 16 | Public officer and ward scorecards | Planned |
-| 17 | Alerts: reporters and upvoters asked to verify fixes | Planned |
+| **15** | **Gemini: tagging reports and checking before/after photos** | **Done** |
+| 16 | Public officer and ward scorecards | Done |
+| 17 | Alerts: reporters and upvoters asked to verify fixes | Next |
 | 18 | Escalation: evidence pack, councillor petition, RTI draft | Planned |
 | 19 | TinyFish: official ward data, road ownership, contacts, notices | Planned |
 | 20 | Demo data, polish, demo script | Planned |
@@ -57,7 +57,8 @@ We are building in phases. This README documents what exists today.
 - **Vitest** with `mongodb-memory-server` for tests against a real `mongod`
 - **Tailwind CSS 4** with theme tokens in CSS, and fonts self-hosted through `next/font`
 - **Leaflet** (react-leaflet 5) with **OpenStreetMap** tiles. There's no map API key and no billing.
-- Coming up: Google Gemini, TinyFish
+- Google Gemini (`@google/genai`) for photo tagging and before/after checks
+- Coming up: TinyFish
 
 ---
 
@@ -85,8 +86,8 @@ npm run dev                  # http://localhost:3000
 | --- | --- | --- |
 | `MONGODB_URI` | Phase 1 | Connection string, e.g. `mongodb+srv://user:pass@cluster.mongodb.net/pinpoint` |
 | `JWT_SECRET` | Phase 1 | Signs session tokens. At least 32 characters. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `GEMINI_API_KEY` | Phase 3 | Google AI Studio key |
-| `GEMINI_MODEL` | Phase 3 | Gemini model id used for image tagging |
+| `GEMINI_API_KEY` | Phase 15 | Google AI Studio key. Leave empty to run without AI; every AI feature just stays hidden. |
+| `GEMINI_MODEL` | Phase 15 | Gemini model id (default `gemini-3.5-flash`) |
 | `TINYFISH_API_KEY` | Phase 19 | TinyFish key, used to import ward boundaries, road lists and contacts, and to monitor official notices |
 | `CRON_SECRET` | Phase 19 | Shared secret for scheduled routes (refreshing official notices) |
 | `DEMO_PASSWORD` | Phase 10 | Password for the demo officer and admin accounts made by `npm run seed:officials` |
@@ -132,6 +133,7 @@ src/
     officer/               OfficerAccess (request officer access, see its status)
     RecheckAccess.tsx      reloads a 403 page once the refreshed session allows it
     report/                ReportFlow · Stepper · PhotoStep · LocationStep · LocationPickerMap
+    scorecard/             CityScorecard · WardScorecard · Stat
     map/                   HomeMap (client-only loader) · MapView · WardLayer · IssueLayer · IssuePopup · issuePin · MapPlaceholder
     ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState · Alert
     issue/                 StatusPill · CategoryIcon · SeverityMeter
@@ -142,6 +144,8 @@ src/
     officer-requests/      ask for officer access, see or withdraw your request
     admin/                 officials · officer-requests (review)
     photos/[id]/           serves stored images
+    ai/tag/                Gemini suggestions for a report photo
+    scorecard/             public ward ranking · [ward] for one ward
     wards/                 pilot ward list
   lib/
     auth.ts                session cookie, getSession / requireUser / requireRole
@@ -159,6 +163,11 @@ src/
     officials.ts           requireStaff (role from the database), makeOfficial, removeOfficial
     officerRequests.ts     request shape, reviewRequest (approve or reject, safe against double clicks)
     compressPhoto.ts       in-browser photo compression (about 120 KB JPEG, 1600 px max)
+    gemini.ts              tagPhoto and compareFix, both null on any failure
+    fixCheck.ts            runs compareFix after an officer posts a fix, saves it on the issue
+    location.ts            one browser GPS reading (used by the verify screens)
+    scorecard.ts           scorecard maths: fix attempts, medians, acceptance rate
+    scorecardData.ts       loads issues and public officer profiles for the scorecard
   hooks/useSession.ts      who is logged in, shared across the tab
   hooks/useIssues.ts       issues for the visible map area (debounced, cancels stale requests)
   hooks/useQueue.ts        the ward queue for one status tab, with counts per status
@@ -166,7 +175,7 @@ src/
   proxy.ts                 page-level redirects for logged-in / logged-out users
   models/                  User · Issue · Photo · Ward · OfficerRequest
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
-scripts/                  seed-wards · seed-officials · set-role
+scripts/                  seed-wards · seed-officials · set-role · ai-accuracy
 tests/                     Vitest suites + in-memory MongoDB setup
 ```
 
@@ -265,6 +274,9 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 | --- | --- | --- |
 | GET | `/api/photos/:id` | Raw image, served with `Cache-Control: immutable` |
 | GET | `/api/wards` | Pilot wards. Add `?boundary=true` to include the GeoJSON polygons. |
+| POST | `/api/ai/tag` | Logged in, 20 an hour. Multipart `photo`. Returns `{ suggestion: { looksLikeCivicIssue, category, severity, title } \| null }`. `null` when AI is off or the call fails. |
+| GET | `/api/scorecard` | Public. Query: `sort=acceptance\|speed\|overdue`. Every pilot ward's metrics plus city totals. |
+| GET | `/api/scorecard/:ward` | Public. One ward by number: its metrics, its officers (name and designation only), the last 10 verified fixes and every overdue issue. 404 outside the pilot. |
 
 ### Issue shape
 
@@ -316,7 +328,7 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 npm test
 ```
 
-107 tests across eleven suites. The API suites run against a real MongoDB replica set in memory:
+126 tests across thirteen suites. The API suites run against a real MongoDB replica set in memory:
 
 - **geo:** distance accuracy, GeoJSON round trip, point-in-polygon (including holes)
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
@@ -328,6 +340,8 @@ npm test
 - **dashboard:** queue ranking, own ward only (officials can't peek with `?ward=`), admins choosing a ward, status counts; starting work, never setting resolved, other wards and admins refused, an after-photo 80 m away refused (and not stored), rough GPS and old photos refused, a double press only moving the issue once
 - **verification:** 3 confirms verify a fix and 3 rejects send it back to the officer (whichever comes first); failed attempts are counted and kept after a later success; one vote per person; staff and the posting officer refused; 300 m and GPS-accuracy checks; votes only while waiting; five people voting at once settle it exactly once; each viewer sees only their own vote; a verified issue still reopens if the problem comes back; streetlights only after dark (IST)
 - **officerRequests:** asking doesn't grant anything, one pending request at a time, withdrawing, approving (and correcting the ward), vouching for a non-government email, rejecting with a reason the applicant sees, no second decision
+- **gemini:** structured replies parsed, bad or slow replies and a missing key give `null`, `/api/ai/tag` needs a login and is rate limited, the before/after check is stored and shown with the fix, never blocks or breaks it, and isn't attached to a newer after-photo (SDK mocked)
+- **scorecard:** medians refuse fewer than 3 points, fix attempts read from a history, ward and officer metrics, dashes until there's enough data, the public ranking, a ward's officers without emails, 404 outside the pilot
 - **officials:** government email check, promoting and demoting, admin-only API, roles read from the database rather than a stale cookie, `/me` re-issuing the cookie after a role change
 
 ---
@@ -472,7 +486,7 @@ When an officer marks an issue fixed, the issue page shows an **"Is it fixed?"**
   - Settling is a second conditional update that matches only if the third vote exists (`verification.confirms.2`).
   - However many people tap at once, the issue is decided exactly once.
 - **On record:**
-  - `failedVerifications` shows on the issue page ("Verification failed 1 time"), in the officer's queue and in the drawer. The Phase 16 scorecard will count it.
+  - `failedVerifications` shows on the issue page ("Verification failed 1 time"), in the officer's queue and in the drawer. The scorecard counts it as a rejected fix.
   - It's kept separate from `reopenCount`, which counts problems that came back after being resolved.
 - **Before and after:** once a fix is posted, the issue page shows the two photos together (side by side on wide screens, a Before / After toggle on phones), with when each was taken and how far from the reported spot the officer stood. Resolved issues keep it as a record.
 - **Distance check:** "Check if I can vote" reads your position once and says how far you are, and turns the buttons off if you're beyond 300 m. The server still does the real check.
@@ -550,10 +564,32 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ---
 
+## Gemini (advisory only)
+
+- **Off by default.** With no `GEMINI_API_KEY`, `tagPhoto` and `compareFix` return `null` and the app works exactly as before. Any failure (timeout after 12 s, a reply that doesn't match the Zod schema) is also `null`.
+- **Report tagging:** while the resident places the pin, the photo goes to `POST /api/ai/tag`. The details step is pre-filled with the suggested title, category and severity, but only fields the resident hasn't touched. A photo that doesn't look like a civic problem gets a note instead. What the AI suggested is saved next to what the resident chose (`aiSuggestion`, `userChoice`); `npm run ai:accuracy` reports how often people kept it.
+- **Before/after check:** when an officer posts a fix, `checkFix` runs after the response is sent (`after()` from `next/server`), so the officer never waits. It asks whether both photos show the same spot and whether the problem looks fixed, and saves the answer as `fix.ai` only if that after-photo is still the current one. The "Is it fixed?" panel shows it as "AI photo check", worded as a second opinion. Residents' votes still decide.
+
+---
+
+## Scorecards
+
+- **`/scorecard`:** every pilot ward side by side, with city totals, sortable by fixes accepted, fastest fixes or most overdue.
+- **`/scorecard/:ward`:** the ward's numbers, each officer who has posted a fix there (current and former), every overdue issue and the last 10 verified fixes.
+- **Where the numbers come from:** nothing is stored. `lib/scorecard.ts` reads each issue's `statusHistory` as fix attempts: an officer moving it to Pending verification opens one, and residents close it as verified (Resolved) or failed (back to In progress with no `by`).
+  - **Fixes accepted:** verified ÷ (verified + failed).
+  - **Median time to fix:** report to residents' confirmation.
+  - **First response:** report to the first Start work or posted fix.
+  - **Overdue:** the same `isOverdue` the issue page uses.
+- **Small samples:** rates and medians show a dash until there are 3 data points (`MIN_SAMPLES`).
+- **Officers follow their own record.** A fix counts for whoever posted it, even after they move ward. Only name and designation are public, never email.
+
+---
+
 ## Roadmap (next phase)
 
-The full plan for Phases 15–20 is in [`plan.md`](plan.md). Next up is Phase 15, Gemini:
+The full plan for Phases 17–20 is in [`plan.md`](plan.md). Next up is Phase 17, alerts:
 
-- `lib/gemini.ts` with `tagPhoto` and `compareFix`, both returning `null` on any failure or when no key is set
-- `POST /api/ai/tag`, and suggestions pre-filled in the report details step
-- a before/after comparison stored on the fix and shown in the "Is it fixed?" panel
+- `GET /api/stream` (server-sent events from a MongoDB change stream)
+- an in-app prompt for reporters and upvoters when a fix is waiting for their vote
+- live map updates, with polling as a fallback

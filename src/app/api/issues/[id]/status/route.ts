@@ -1,5 +1,8 @@
 import type { UpdateQuery } from "mongoose";
+import { after } from "next/server";
 import { FIX_MAX_ACCURACY_M, FIX_PHOTO_MAX_AGE_MIN, FIX_RADIUS_M, type Status } from "@/lib/constants";
+import { checkFix } from "@/lib/fixCheck";
+import { geminiEnabled } from "@/lib/gemini";
 import { distanceInMetres, fromGeoPoint, toGeoPoint } from "@/lib/geo";
 import { HttpError, json, route } from "@/lib/http";
 import { requireStaff } from "@/lib/officials";
@@ -89,6 +92,10 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/issues/[id]/statu
   if (!updated) {
     if (photoId) await Photo.deleteOne({ _id: photoId });
     throw new HttpError(409, "Someone updated this issue a moment ago. Reload and check it.");
+  }
+  if (photoId && geminiEnabled()) {
+    const afterPhoto = photoId;
+    after(() => checkFix(id, afterPhoto));
   }
   return json({ issue: serializeIssueDetail(updated) });
 });

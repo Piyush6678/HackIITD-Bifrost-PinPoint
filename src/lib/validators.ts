@@ -163,3 +163,7 @@ export const voteSchema = z.object({
   lng: lngN,
   accuracy: z.number().min(0, "accuracy must be in metres"),
 });
+
+export const scorecardSchema = z.object({
+  sort: z.enum(["acceptance", "speed", "overdue"]).default("acceptance"),
+});

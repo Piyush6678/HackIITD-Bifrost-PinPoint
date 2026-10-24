@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { Category } from "@/lib/constants";
+import type { PhotoTags } from "@/lib/gemini";
 import { formatCoords } from "@/lib/format";
 import type { PublicIssue } from "@/lib/serialize";
 import { Alert } from "../ui/Alert";
@@ -30,11 +31,13 @@ type Props = {
   place: PickedPlace;
   details: ReportDetails;
   onChange: (details: ReportDetails) => void;
+  // Gemini's reading of the photo, if it gave one.
+  suggestion: PhotoTags | null;
   onBack: () => void;
   onCreated: (issue: PublicIssue, reopenedAfterDays: number | null) => void;
 };
 
-export function DetailsStep({ photo, place, details, onChange, onBack, onCreated }: Props) {
+export function DetailsStep({ photo, place, details, onChange, suggestion, onBack, onCreated }: Props) {
   const router = useRouter();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +69,11 @@ export function DetailsStep({ photo, place, details, onChange, onBack, onCreated
     body.set("lat", String(place.lat));
     body.set("lng", String(place.lng));
     if (details.description.trim()) body.set("description", details.description.trim());
+    // Stored next to what the resident chose, to see how often people correct the AI.
+    if (suggestion?.looksLikeCivicIssue) {
+      const { category, severity, title } = suggestion;
+      body.set("aiSuggestion", JSON.stringify({ category, severity, title }));
+    }
 
     setPending(true);
     setError(null);
@@ -112,6 +120,19 @@ export function DetailsStep({ photo, place, details, onChange, onBack, onCreated
 
       <form onSubmit={onSubmit} noValidate className="mt-5 flex flex-col gap-5">
         {error && <Alert>{error}</Alert>}
+
+        {suggestion &&
+          (suggestion.looksLikeCivicIssue ? (
+            <p className="rounded-md border border-amber/30 bg-amber/8 px-3.5 py-2.5 text-sm text-ink">
+              <span className="font-bold text-amber">Suggested from your photo.</span> Check the title, category and
+              severity, and change anything that&apos;s wrong.
+            </p>
+          ) : (
+            <Alert tone="info">
+              This photo doesn&apos;t clearly show a civic problem. If it does, fill in the details below; otherwise go
+              back and retake it.
+            </Alert>
+          ))}
 
         {duplicate && (
           <div className="flex flex-col gap-3">

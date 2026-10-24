@@ -73,3 +73,14 @@ export function formatHours(hours: number) {
   if (hours < 48) return `${Math.round(hours)} h`;
   return `${Math.round(hours / 24)} d`;
 }
+
+// Scorecard numbers. null means "not enough data yet", shown as a dash.
+export function formatDays(days: number | null) {
+  if (days === null) return "—";
+  if (days < 1) return "<1 day";
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+export function formatPercent(value: number | null) {
+  return value === null ? "—" : `${value}%`;
+}

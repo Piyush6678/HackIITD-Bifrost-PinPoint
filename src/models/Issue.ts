@@ -21,7 +21,16 @@ export interface IIssue {
   resolutionPhoto?: Types.ObjectId;
   // Where and when the officer said it was fixed. Kept so residents (and Gemini
   // later) can judge the after-photo, and so a rejected fix stays on record.
-  fix?: { by: Types.ObjectId; at: Date; location: GeoPoint; accuracy: number; distance: number; note?: string };
+  fix?: {
+    by: Types.ObjectId;
+    at: Date;
+    location: GeoPoint;
+    accuracy: number;
+    distance: number;
+    note?: string;
+    // Gemini's before/after comparison, shown to residents as a second opinion.
+    ai?: { samePlace: boolean; looksFixed: boolean; confidence: "low" | "medium" | "high"; summary: string; at: Date };
+  };
   upvotes: Types.ObjectId[];
   upvoteCount: number;
   // Both kept so we can measure how often people override the model.
@@ -86,6 +95,14 @@ const issueSchema = new Schema<IIssue, IssueModel>(
       accuracy: Number,
       distance: Number,
       note: { type: String, trim: true, maxlength: 500 },
+      ai: {
+        _id: false,
+        samePlace: Boolean,
+        looksFixed: Boolean,
+        confidence: { type: String, enum: ["low", "medium", "high"] },
+        summary: String,
+        at: Date,
+      },
     },
     upvotes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     upvoteCount: { type: Number, default: 0 },

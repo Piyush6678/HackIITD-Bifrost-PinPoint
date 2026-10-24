@@ -3,10 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { currentPosition } from "@/components/issue/VerifyPanel";
 import { api, ApiError } from "@/lib/api";
 import { CONFIRM_RADIUS_M } from "@/lib/constants";
 import { CATEGORY_LABELS, formatDistance, timeAgo } from "@/lib/format";
+import { currentPosition } from "@/lib/location";
 import type { PublicIssue } from "@/lib/serialize";
 import { CategoryIcon } from "../issue/CategoryIcon";
 import { Alert } from "../ui/Alert";

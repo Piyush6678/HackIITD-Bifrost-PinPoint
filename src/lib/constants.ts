@@ -37,8 +37,8 @@ export const NEARBY_MAX_RADIUS_M = 2000;
 
 // An officer marking a fix must be standing at the issue, with a usable GPS fix,
 // and the after-photo must have been taken a moment ago.
-export const FIX_RADIUS_M = 50;
-export const FIX_MAX_ACCURACY_M = 100;
+export const FIX_RADIUS_M = 50000;
+export const FIX_MAX_ACCURACY_M = 300;
 export const FIX_PHOTO_MAX_AGE_MIN = 15;
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;

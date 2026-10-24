@@ -9,6 +9,7 @@ import { isAfterDark } from "@/lib/categories";
 import { CONFIRM_RADIUS_M, FIX_MAX_ACCURACY_M } from "@/lib/constants";
 import { formatDistance } from "@/lib/format";
 import { distanceInMetres } from "@/lib/geo";
+import { currentPosition } from "@/lib/location";
 import type { serializeIssueDetail } from "@/lib/serialize";
 import { Alert } from "../ui/Alert";
 import { Button, buttonClasses } from "../ui/Button";
@@ -147,6 +148,8 @@ export function VerifyPanel({ issue, onVoted }: Props) {
       <h2 className="mt-1 font-serif text-lg font-bold leading-snug text-ink">The ward officer says this is fixed</h2>
       <p className="mt-1.5 text-sm text-ink-soft">{issue.verifyHint}</p>
 
+      {issue.fix?.aiCheck && <AiCheck check={issue.fix.aiCheck} />}
+
       <div className="mt-4 flex flex-col gap-2.5" aria-label="Votes so far">
         <Tally label="Say fixed" count={confirms} needed={needed} tone="bg-mint" />
         <Tally label="Say not fixed" count={rejects} needed={needed} tone="bg-brick" />
@@ -182,23 +185,23 @@ function Tally({ label, count, needed, tone }: { label: string; count: number; n
   );
 }
 
-export function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number }> {
-  return new Promise((resolve, reject) => {
-    if (!("geolocation" in navigator)) {
-      reject(new Error("This browser can't share its location, so we can't check you're nearby."));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude, accuracy: Math.round(coords.accuracy) }),
-      (err) =>
-        reject(
-          new Error(
-            err.code === err.PERMISSION_DENIED
-              ? "Location is blocked. Allow it for this site so we can check you're near the issue."
-              : "Couldn't get your location. Step into the open and try again.",
-          ),
-        ),
-      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 },
-    );
-  });
+type Check = NonNullable<NonNullable<IssueDetail["fix"]>["aiCheck"]>;
+
+// Gemini's comparison of the two photos. A second opinion only, so it's worded
+// as what the AI sees and never as a verdict.
+function AiCheck({ check }: { check: Check }) {
+  const doubt = !check.samePlace || !check.looksFixed;
+  return (
+    <div className="mt-3 rounded-md border border-amber/30 bg-amber/8 px-3.5 py-2.5 text-sm">
+      <p className="font-bold text-amber">
+        AI photo check{doubt ? ": worth a closer look" : ""}
+        <span className="ml-1.5 font-mono text-[0.6875rem] font-normal text-ink-faint">{check.confidence} confidence</span>
+      </p>
+      <p className="mt-1 text-ink">{check.summary}</p>
+      <p className="mt-1 text-xs text-ink-faint">
+        {check.samePlace ? "Looks like the same spot" : "May not be the same spot"} ·{" "}
+        {check.looksFixed ? "looks fixed" : "may not be fixed"}. Residents decide, not the AI.
+      </p>
+    </div>
+  );
 }

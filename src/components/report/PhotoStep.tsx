@@ -46,7 +46,7 @@ export function PhotoStep({ photo, onChange, onNext }: Props) {
       <h1 id="photo-heading" className="font-serif text-[1.75rem] font-bold leading-tight text-ink">
         Take a photo of the problem
       </h1>
-      <p className="mt-1.5 text-ink-soft">One clear photo is enough. It&apos;s made smaller on your phone before it&apos;s sent.</p>
+      <p className="mt-1.5 text-ink-soft">One clear photo is enough. It&apos;s made smaller on your phone before it&apos;s sent, and an AI looks at it to suggest the details.</p>
 
       {/* Two inputs: `capture` jumps straight to the camera on phones, the other allows the gallery. */}
       <input

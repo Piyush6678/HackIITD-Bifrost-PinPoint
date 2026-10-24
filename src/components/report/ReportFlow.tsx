@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import type { PhotoTags } from "@/lib/gemini";
 import type { PublicIssue } from "@/lib/serialize";
 import { ConfirmationStep } from "./ConfirmationStep";
 import { DetailsStep, EMPTY_DETAILS, type ReportDetails } from "./DetailsStep";
@@ -17,6 +19,8 @@ export function ReportFlow() {
   const [place, setPlace] = useState<PickedPlace | null>(null);
   const [details, setDetails] = useState<ReportDetails>(EMPTY_DETAILS);
   const [created, setCreated] = useState<{ issue: PublicIssue; reopenedAfterDays: number | null } | null>(null);
+  // What Gemini suggested for the current photo, keyed by its URL so a retake drops it.
+  const [ai, setAi] = useState<{ url: string; tags: PhotoTags } | null>(null);
 
   // Blob URLs hold the image in memory until revoked.
   useEffect(
@@ -25,6 +29,29 @@ export function ReportFlow() {
     },
     [photo],
   );
+
+  // Ask for suggestions while the resident places the pin; it's ready by the details step.
+  useEffect(() => {
+    if (!photo) return;
+    const controller = new AbortController();
+    const body = new FormData();
+    body.set("photo", photo.file, photo.file.name);
+    api<{ suggestion: PhotoTags | null }>("/api/ai/tag", { method: "POST", body, signal: controller.signal })
+      .then(({ suggestion }) => {
+        if (!suggestion) return;
+        setAi({ url: photo.url, tags: suggestion });
+        // Only fill what the resident hasn't touched.
+        setDetails((d) => ({
+          ...d,
+          title: d.title || (suggestion.looksLikeCivicIssue ? suggestion.title : ""),
+          category: d.category ?? (suggestion.looksLikeCivicIssue ? suggestion.category : null),
+          severity: d.severity === EMPTY_DETAILS.severity && suggestion.looksLikeCivicIssue ? suggestion.severity : d.severity,
+        }));
+      })
+      // Suggestions are optional; the form works the same without them.
+      .catch(() => {});
+    return () => controller.abort();
+  }, [photo]);
 
   // Each step starts at the top, which matters on phones.
   useEffect(() => {
@@ -63,6 +90,7 @@ export function ReportFlow() {
             place={place}
             details={details}
             onChange={setDetails}
+            suggestion={ai?.url === photo.url ? ai.tags : null}
             onBack={() => setStep(1)}
             onCreated={(issue, reopenedAfterDays) => setCreated({ issue, reopenedAfterDays })}
           />
