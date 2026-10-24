@@ -1,6 +1,6 @@
 # PinPoint
 
-**One public map for every civic problem, filed into the portals that already exist.**
+**One public map for every civic problem, where residents, not the paperwork, decide when it's fixed.**
 
 PinPoint lets a resident report a civic problem (a pothole, an overflowing bin, a dead streetlight) with one photo and a GPS pin. Reports within 50 m of an open issue of the same kind are merged into it as upvotes, so urgency stacks instead of splitting across forty duplicate tickets. Everything is public and readable without an account.
 
@@ -43,7 +43,7 @@ We are building in phases. This README documents what exists today.
 | 16 | Public officer and ward scorecards | Planned |
 | 17 | Alerts: reporters and upvoters asked to verify fixes | Planned |
 | 18 | Escalation: evidence pack, councillor petition, RTI draft | Planned |
-| 19 | TinyFish: file to MCD-311 / Swachhata and sync status | Planned |
+| 19 | TinyFish: official ward data, road ownership, contacts, notices | Planned |
 | 20 | Demo data, polish, demo script | Planned |
 
 ---
@@ -87,8 +87,8 @@ npm run dev                  # http://localhost:3000
 | `JWT_SECRET` | Phase 1 | Signs session tokens. At least 32 characters. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `GEMINI_API_KEY` | Phase 3 | Google AI Studio key |
 | `GEMINI_MODEL` | Phase 3 | Gemini model id used for image tagging |
-| `TINYFISH_API_KEY` | Phase 8 | TinyFish Agent API key |
-| `CRON_SECRET` | Phase 19 | Shared secret for the scheduled portal-sync endpoint |
+| `TINYFISH_API_KEY` | Phase 19 | TinyFish key, used to import ward boundaries, road lists and contacts, and to monitor official notices |
+| `CRON_SECRET` | Phase 19 | Shared secret for scheduled routes (refreshing official notices) |
 | `DEMO_PASSWORD` | Phase 10 | Password for the demo officer and admin accounts made by `npm run seed:officials` |
 
 `.env.local` is git-ignored. Never commit real keys.
