@@ -1,12 +1,6 @@
 import Link from "next/link";
+import { StatusDot } from "@/components/issue/StatusPill";
 import { STATUSES, STATUS_LABELS } from "@/lib/constants";
-
-const STATUS_DOT: Record<(typeof STATUSES)[number], string> = {
-  open: "bg-status-open",
-  in_progress: "bg-status-progress",
-  pending_verification: "bg-status-pending",
-  resolved: "bg-status-resolved",
-};
 
 const STEPS = [
   {
@@ -26,7 +20,7 @@ const STEPS = [
 export default function HomePage() {
   return (
     <div className="grid w-full flex-1 md:flex-none md:h-[calc(100dvh-4rem)] md:grid-rows-[minmax(0,1fr)] md:grid-cols-[400px_1fr] lg:grid-cols-[440px_1fr]">
-      <section className="order-2 border-line bg-white px-5 py-7 md:order-1 md:overflow-y-auto md:[scrollbar-width:thin] md:border-r md:px-8 md:py-10">
+      <section className="order-2 border-line bg-white px-5 py-7 md:order-1 md:overflow-y-auto md:scrollbar-thin md:border-r md:px-8 md:py-10">
         <p className="eyebrow inline-block rounded bg-mist px-2.5 py-1.5 text-pine">Karol Bagh zone · Pilot</p>
         <h1 className="mt-3 font-serif text-[2rem] font-bold leading-[1.1] tracking-tight text-ink md:text-[2.25rem]">
           Every civic problem, on one public map.
@@ -54,7 +48,7 @@ export default function HomePage() {
           <ol className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
             {STATUSES.map((status) => (
               <li key={status} className="flex items-center gap-2 text-sm font-bold text-ink">
-                <span className={`size-2.5 rounded-full ${STATUS_DOT[status]}`} />
+                <StatusDot status={status} className="size-2.5" />
                 {STATUS_LABELS[status]}
               </li>
             ))}

@@ -23,9 +23,9 @@ We are building in phases. This README documents what exists today.
 | --- | --- | --- |
 | 0 | Project setup, tooling | Done |
 | 1 | Backend core: auth, issues, duplicate detection, upvotes, wards | Done |
-| **2** | **Design tokens, fonts, logo, app shell** | **Done** |
-| 3 | UI primitives: buttons, fields, status pills, category icons | Next |
-| 4 | Client API layer, login and register pages | Planned |
+| 2 | Design tokens, fonts, logo, app shell | Done |
+| **3** | **UI primitives: buttons, fields, status pills, category icons** | **Done** |
+| 4 | Client API layer, login and register pages | Next |
 | 5 | Base map with ward outlines | Planned |
 | 6 | Issue pins on the map | Planned |
 | 7 | Side panel, filters and sorting | Planned |
@@ -117,6 +117,8 @@ src/
     AppShell.tsx           top bar (desktop), skip link, main region
     NavLinks.tsx           top nav and mobile bottom tab bar
     Logo.tsx               ring mark and wordmark
+    ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState
+    issue/                 StatusPill · CategoryIcon · SeverityMeter
   app/api/                 Route handlers (one folder per endpoint)
     auth/                  register · login · logout · me
     issues/                list · create · nearby · [id] · [id]/upvote
@@ -132,6 +134,7 @@ src/
     rateLimit.ts           in-memory sliding-window limiter
     serialize.ts           public JSON shape of an issue
     validators.ts          Zod schemas for every request
+    format.ts              labels, relative time, distance, coordinates
   models/                  User · Issue · Photo · Ward
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
 scripts/seed-wards.ts
@@ -244,12 +247,13 @@ curl -b cookies.txt http://localhost:3000/api/issues \
 npm test
 ```
 
-32 tests across four suites run against a real MongoDB replica set in memory:
+37 tests across five suites. The API suites run against a real MongoDB replica set in memory:
 
 - **geo:** distance accuracy, GeoJSON round trip
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
 - **auth:** registration, hashing, duplicate emails, validation errors, login, `/me`, logout
 - **issues:** create, duplicate 409, AI suggestion stored next to the user's choice, rate limiting, upvote idempotency and withdrawal, bbox / category / status filters, nearby ordering, detail, photo serving, wards
+- **format:** relative times, distances, coordinates, severity labels
 
 ---
 
@@ -277,6 +281,22 @@ Each issue status has its own colour: `status-open` (red), `status-progress` (am
 
 `next/font` self-hosts all three, so there are no requests to Google at runtime.
 
+**Components**
+
+Shared pieces live in `src/components/ui` (generic) and `src/components/issue` (anything that knows what an issue is). The component sheet in the Stitch project is the visual reference.
+
+| Component | Notes |
+| --- | --- |
+| `Button` | `primary`, `accent`, `secondary`, `ghost`, `danger`; sizes `md` / `sm`; `loading` shows a spinner and blocks double submits. Use `buttonClasses()` to style a `Link` as a button. |
+| `TextField`, `TextArea`, `Select` | Label above the control, then a hint or an error below it. The error turns the border brick and is wired to the control with `aria-describedby` / `aria-invalid`. |
+| `Chip` | Toggle for filters. Uses `aria-pressed`, with an optional colour dot and count. |
+| `StatusPill`, `StatusDot` | One tone per lifecycle status. `STATUS_TONE` is exported so maps and charts reuse the same colours. |
+| `CategoryIcon` | Custom 24 px line icons, one per category, drawn as `plain` or as a tinted `badge`. `CATEGORY_TONE` gives the matching dot, text and tint classes. |
+| `SeverityMeter` | Five segments, which turn brick from severity 4 up. Exposed as `role="meter"`. |
+| `Skeleton`, `IssueCardSkeleton`, `Spinner`, `EmptyState` | Loading and empty states, so no screen is ever blank. |
+
+Tailwind only generates classes it can find in the source, so colour classes are always written out in full in lookup tables (`bg-cat-pothole`, never `` `bg-cat-${category}` ``).
+
 **Layout**
 
 - **Desktop:** the home page is a fixed-height split. A scrolling info panel sits on the left, and the map fills the rest of the screen.
@@ -287,8 +307,9 @@ Each issue status has its own colour: `status-open` (red), `status-progress` (am
 
 ## Roadmap (next phase)
 
-Phase 3 adds the shared UI pieces every later screen is built from:
+Phase 4 connects the frontend to the API:
 
-- buttons, text fields, selects, chips, skeletons and empty states
-- status pills, a severity meter and a custom icon set for each category
-- small formatting helpers for relative time, distance and labels
+- a small typed fetch client that understands the API's error shape
+- a session hook backed by `/api/auth/me`
+- login and register pages with inline field errors
+- a user menu in the header, and a route guard (`src/proxy.ts`) that sends logged-out users from `/report` to login
