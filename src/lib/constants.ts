@@ -35,5 +35,9 @@ export const NEARBY_MAX_RADIUS_M = 2000;
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// Only government addresses can be made officials through the admin API.
+// The CLI scripts can override this for demo accounts.
+export const OFFICIAL_EMAIL_DOMAINS = ["mcd.nic.in", "delhi.gov.in"];
+
 export const SESSION_COOKIE = "pp_session";
 export const SESSION_TTL_DAYS = 7;

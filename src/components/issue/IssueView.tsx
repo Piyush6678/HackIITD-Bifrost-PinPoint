@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
 import { CATEGORY_LABELS, formatCoords, formatDate, timeAgo } from "@/lib/format";
@@ -36,7 +37,8 @@ async function fetchIssue(id: string): Promise<State> {
   }
 }
 
-export function IssueView({ id }: { id: string }) {
+export function IssueView() {
+  const { id } = useParams<{ id: string }>();
   const [state, setState] = useState<State>({ status: "loading" });
 
   // Bumped by "Try again" to re-run the fetch effect.
@@ -115,6 +117,16 @@ export function IssueView({ id }: { id: string }) {
 
           <SeverityMeter value={issue.severity} className="mt-3" />
 
+          {issue.reopenCount > 0 && (
+            <div className="mt-4">
+              <Alert tone="info">
+                {issue.reopenCount === 1
+                  ? "A fix was reported for this before, but the problem came back."
+                  : `Fixes were reported ${issue.reopenCount} times before, but the problem came back.`}
+              </Alert>
+            </div>
+          )}
+
           {issue.photoUrl && (
             <div className="relative mt-5 aspect-4/3 overflow-hidden rounded-card border border-line bg-mist">
               <Image
@@ -146,6 +158,12 @@ export function IssueView({ id }: { id: string }) {
             <Meta label="Reported">
               {formatDate(issue.createdAt)} · {timeAgo(issue.createdAt)}
             </Meta>
+            <Meta label="Handled by">{issue.department}</Meta>
+            {issue.status !== "resolved" && (
+              <Meta label={issue.overdue ? "Overdue since" : "Fix due by"}>
+                <span className={issue.overdue ? "text-brick" : undefined}>{formatDate(issue.dueAt)}</span>
+              </Meta>
+            )}
             {issue.portal && <Meta label={issue.portal.name}>{issue.portal.ticketId ?? "Filed, awaiting ticket"}</Meta>}
           </dl>
 

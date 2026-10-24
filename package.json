@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "seed:wards": "tsx --env-file=.env.local scripts/seed-wards.ts"
+    "seed:wards": "tsx --env-file=.env.local scripts/seed-wards.ts",
+    "set-role": "tsx --env-file=.env.local scripts/set-role.ts",
+    "seed:officials": "tsx --env-file=.env.local scripts/seed-officials.ts"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",

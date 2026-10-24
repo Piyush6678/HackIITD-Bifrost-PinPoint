@@ -31,7 +31,7 @@ type Props = {
   details: ReportDetails;
   onChange: (details: ReportDetails) => void;
   onBack: () => void;
-  onCreated: (issue: PublicIssue) => void;
+  onCreated: (issue: PublicIssue, reopenedAfterDays: number | null) => void;
 };
 
 export function DetailsStep({ photo, place, details, onChange, onBack, onCreated }: Props) {
@@ -73,8 +73,11 @@ export function DetailsStep({ photo, place, details, onChange, onBack, onCreated
     setDuplicate(null);
 
     try {
-      const { issue } = await api<{ issue: PublicIssue }>("/api/issues", { method: "POST", body });
-      onCreated(issue);
+      const result = await api<{ issue: PublicIssue; reopened?: boolean; daysSinceFix?: number }>("/api/issues", {
+        method: "POST",
+        body,
+      });
+      onCreated(result.issue, result.reopened ? (result.daysSinceFix ?? null) : null);
     } catch (err) {
       const e = err instanceof ApiError ? err : new ApiError(0, "Something went wrong");
       const existing = (e.data as { duplicateOf?: PublicIssue } | undefined)?.duplicateOf;

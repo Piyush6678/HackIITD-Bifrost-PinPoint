@@ -1,7 +1,7 @@
 import type { Category } from "./constants";
 
 export const CATEGORY_LABELS: Record<Category, string> = {
-  pothole: "Pothole",
+  pothole: "Road damage",
   garbage: "Garbage",
   streetlight: "Streetlight",
   waterlogging: "Waterlogging",

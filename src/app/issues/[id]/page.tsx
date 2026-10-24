@@ -4,17 +4,13 @@ import { IssueSkeleton, IssueView } from "@/components/issue/IssueView";
 
 export const metadata: Metadata = { title: "Issue" };
 
-// The id is only known at request time, so reading it has to sit inside Suspense
-// for the rest of the page shell to prerender.
-export default function IssuePage({ params }: PageProps<"/issues/[id]">) {
+// The page shell is static; IssueView reads the id from the URL on the client and
+// fetches the issue itself. Suspense is still required because the id isn't known
+// at build time.
+export default function IssuePage() {
   return (
     <Suspense fallback={<IssueSkeleton />}>
-      <IssueById params={params} />
+      <IssueView />
     </Suspense>
   );
-}
-
-async function IssueById({ params }: { params: PageProps<"/issues/[id]">["params"] }) {
-  const { id } = await params;
-  return <IssueView id={id} />;
 }

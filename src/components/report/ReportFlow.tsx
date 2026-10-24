@@ -16,7 +16,7 @@ export function ReportFlow() {
   const [photo, setPhoto] = useState<ReportPhoto | null>(null);
   const [place, setPlace] = useState<PickedPlace | null>(null);
   const [details, setDetails] = useState<ReportDetails>(EMPTY_DETAILS);
-  const [created, setCreated] = useState<PublicIssue | null>(null);
+  const [created, setCreated] = useState<{ issue: PublicIssue; reopenedAfterDays: number | null } | null>(null);
 
   // Blob URLs hold the image in memory until revoked.
   useEffect(
@@ -34,7 +34,7 @@ export function ReportFlow() {
   if (created) {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-6 md:py-10">
-        <ConfirmationStep issue={created} />
+        <ConfirmationStep issue={created.issue} reopenedAfterDays={created.reopenedAfterDays} />
       </div>
     );
   }
@@ -64,7 +64,7 @@ export function ReportFlow() {
             details={details}
             onChange={setDetails}
             onBack={() => setStep(1)}
-            onCreated={setCreated}
+            onCreated={(issue, reopenedAfterDays) => setCreated({ issue, reopenedAfterDays })}
           />
         )}
       </div>

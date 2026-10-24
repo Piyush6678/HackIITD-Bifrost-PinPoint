@@ -95,3 +95,8 @@ export function objectId(id: string) {
   if (!isValidObjectId(id)) throw new HttpError(404, "Not found");
   return id;
 }
+
+export const makeOfficialSchema = z.object({
+  email,
+  wardNumber: z.coerce.number().int().positive("Pick a ward"),
+});

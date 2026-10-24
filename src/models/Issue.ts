@@ -31,6 +31,8 @@ export interface IIssue {
   portal?: { name: string; ticketId?: string; expectedBy?: Date; lastSyncedAt?: Date };
   statusHistory: { status: Status; at: Date; by?: Types.ObjectId; note?: string }[];
   resolvedAt?: Date;
+  // Times a fix didn't hold: residents rejected it, or the problem came back soon after.
+  reopenCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +42,7 @@ interface IssueModel extends Model<IIssue> {
     point: LatLng & { category: Category },
     radiusM?: number,
   ): Promise<IIssue | null>;
+  findRecentlyResolved(point: LatLng & { category: Category }, since: Date, radiusM?: number): Promise<IIssue | null>;
 }
 
 const tagging = {
@@ -92,6 +95,7 @@ const issueSchema = new Schema<IIssue, IssueModel>(
       },
     ],
     resolvedAt: Date,
+    reopenCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
@@ -107,6 +111,20 @@ issueSchema.static(
     return this.findOne({
       category,
       status: { $ne: "resolved" },
+      location: {
+        $near: { $geometry: toGeoPoint({ lat, lng }), $maxDistance: radiusM },
+      },
+    }).lean();
+  },
+);
+
+issueSchema.static(
+  "findRecentlyResolved",
+  function ({ lat, lng, category }: LatLng & { category: Category }, since: Date, radiusM = DUPLICATE_RADIUS_M) {
+    return this.findOne({
+      category,
+      status: "resolved",
+      resolvedAt: { $gte: since },
       location: {
         $near: { $geometry: toGeoPoint({ lat, lng }), $maxDistance: radiusM },
       },

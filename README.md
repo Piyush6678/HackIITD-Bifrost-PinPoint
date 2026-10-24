@@ -33,9 +33,9 @@ We are building in phases. This README documents what exists today.
 | **6** | **Issue pins on the map** | **Done** |
 | 7 | Issue page and upvoting | Done |
 | **8** | **Report flow: photo and location** | **Done** |
-| **9** | **Report flow: details, duplicate check, submit** | **Done** |
-| 10 | Officer accounts and ward assignment | Next |
-| 11 | Officer work queue for their ward | Planned |
+| 9 | Report flow: details, duplicate check, submit | Done |
+| **10** | **Officer accounts and ward assignment** | **Done** |
+| 11 | Officer work queue for their ward | Next |
 | 12 | Officer marks a fix with an on-site, GPS-checked after-photo | Planned |
 | 13 | Verification API: 3 nearby residents confirm or reject | Planned |
 | 14 | Verification screen: before/after and vote | Planned |
@@ -88,7 +88,8 @@ npm run dev                  # http://localhost:3000
 | `GEMINI_API_KEY` | Phase 3 | Google AI Studio key |
 | `GEMINI_MODEL` | Phase 3 | Gemini model id used for image tagging |
 | `TINYFISH_API_KEY` | Phase 8 | TinyFish Agent API key |
-| `CRON_SECRET` | Phase 8 | Shared secret for the scheduled portal-sync endpoint |
+| `CRON_SECRET` | Phase 19 | Shared secret for the scheduled portal-sync endpoint |
+| `DEMO_PASSWORD` | Phase 10 | Password for the demo officer and admin accounts made by `npm run seed:officials` |
 
 `.env.local` is git-ignored. Never commit real keys.
 
@@ -102,6 +103,8 @@ npm run dev                  # http://localhost:3000
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run seed:wards` | Upsert the pilot wards and sync indexes. Safe to re-run. |
+| `npm run seed:officials` | Create one demo officer per pilot ward plus an admin (`*@pinpoint.test`). Uses `DEMO_PASSWORD`, and re-running resets their password to it. |
+| `npm run set-role -- --email … --role official --ward 78` | Make an account an official (or `--role admin` / `--role citizen`). Officials need a government email unless you add `--any-domain`. |
 
 The first `npm test` downloads a MongoDB binary, so it is slower than later runs.
 
@@ -146,6 +149,7 @@ src/
     format.ts              labels, relative time, distance, coordinates
     api.ts                 client fetch wrapper, throws ApiError with field errors
     safeNext.ts            validates ?next= redirect targets
+    officials.ts           requireStaff (role from the database), makeOfficial, removeOfficial
     compressPhoto.ts       in-browser photo compression (about 120 KB JPEG, 1600 px max)
   hooks/useSession.ts      who is logged in, shared across the tab
   hooks/useIssues.ts       issues for the visible map area (debounced, cancels stale requests)
@@ -153,7 +157,7 @@ src/
   proxy.ts                 page-level redirects for logged-in / logged-out users
   models/                  User · Issue · Photo · Ward
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
-scripts/seed-wards.ts
+scripts/                  seed-wards · seed-officials · set-role
 tests/                     Vitest suites + in-memory MongoDB setup
 ```
 
@@ -195,7 +199,7 @@ Fields for creating an issue (`multipart/form-data`):
 | --- | --- | --- |
 | `photo` | yes | JPEG, PNG or WebP, at most 5 MB. The client will compress photos to about 120 KB in Phase 2. |
 | `title` | yes | 3–120 characters |
-| `category` | yes | `pothole` `garbage` `streetlight` `waterlogging` `sewage` `encroachment` `other` |
+| `category` | yes | `pothole` (shown as "Road damage") `garbage` `streetlight` `waterlogging` `sewage` `encroachment` `other` |
 | `severity` | yes | Integer 1–5 |
 | `lat`, `lng` | yes | WGS84 decimal degrees |
 | `description` | no | Up to 1000 characters |
@@ -209,6 +213,14 @@ curl -b cookies.txt http://localhost:3000/api/issues \
   -F title="Deep pothole outside metro gate" -F category=pothole -F severity=4 \
   -F lat=28.6519 -F lng=77.1909 -F photo=@pothole.jpg
 ```
+
+### Admin (admin role only)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/admin/officials` | Officials with their wards |
+| POST | `/api/admin/officials` | `{ email, wardNumber }`. Promotes an **existing** account to official for that ward. The email must be `@mcd.nic.in` or `@delhi.gov.in`. Errors: 404 for no such account or ward, 409 for an admin, 422 for a non-government email. |
+| DELETE | `/api/admin/officials/:id` | Turns an official back into a resident. Their past actions stay in issue histories. |
 
 ### Other
 
@@ -233,7 +245,10 @@ curl -b cookies.txt http://localhost:3000/api/issues \
   "photoUrl": "/api/photos/6adc6034fa3d2be399cb7ab7",
   "resolutionPhotoUrl": null,
   "portal": null,Before an issue is created,
-  "createdAt": "2026-10-24T07:37:24.454Z"
+  "createdAt": "2026-10-24T07:37:24.454Z",
+  "dueAt": "2026-10-31T07:37:24.454Z",
+  "overdue": false,
+  "reopenCount": 0
 }
 ```
 
@@ -263,14 +278,16 @@ curl -b cookies.txt http://localhost:3000/api/issues \
 npm test
 ```
 
-45 tests across six suites. The API suites run against a real MongoDB replica set in memory:
+67 tests across eight suites. The API suites run against a real MongoDB replica set in memory:
 
 - **geo:** distance accuracy, GeoJSON round trip, point-in-polygon (including holes)
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
 - **auth:** registration, hashing, duplicate emails, validation errors, login, `/me`, logout
-- **issues:** create, duplicate 409, AI suggestion stored next to the user's choice, rate limiting, upvote idempotency and withdrawal, bbox / category / status filters, nearby ordering, detail, photo serving, wards
+- **issues:** create, duplicate 409, AI suggestion stored next to the user's choice, rate limiting, upvote idempotency and withdrawal, bbox / category / status filters, nearby ordering, detail, photo serving, wards, reopening a recently fixed issue (within the category's window, not after it), fix targets and departments in the API
 - **format:** relative times, distances, coordinates, severity labels
-- **proxy:** login redirects with `next`, forged cookies, logged-in users kept off auth pages, open-redirect protection
+- **categories:** a rule for every category, fix targets, overdue, the after-dark rule for streetlights, per-category reopen windows
+- **proxy:** login redirects with `next`, forged cookies, logged-in users kept off auth pages, residents shown a 403 on `/dashboard`, open-redirect protection
+- **officials:** government email check, promoting and demoting, admin-only API, roles read from the database rather than a stale cookie, `/me` re-issuing the cookie after a role change
 
 ---
 
@@ -299,6 +316,31 @@ npm test
 
 ---
 
+## Problem categories
+
+PinPoint covers all kinds of civic problems, not just potholes. Everything that differs between categories lives in one table, `src/lib/categories.ts`, so the issue page, the officer queue, verification and the scorecard all use the same rules.
+
+| Category (stored as) | Shown as | Fix target | Comes back within → reopens | Usually handled by | Verifying a fix |
+| --- | --- | --- | --- | --- | --- |
+| `pothole` | Road damage | 7 days | 30 days | MCD Engineering (PWD for roads over 60 ft) | Surface filled and level |
+| `garbage` | Garbage | 2 days | 7 days | MCD Sanitation | Spot clear, bin back |
+| `streetlight` | Streetlight | 3 days | 14 days | MCD Electrical | **Only after dark**: was it on at night? |
+| `waterlogging` | Waterlogging | 2 days | 30 days | Delhi Jal Board / PWD drainage | Drain cleared; the next rain is the real test |
+| `sewage` | Sewage | 2 days | 14 days | Delhi Jal Board | Manhole covered, overflow stopped |
+| `encroachment` | Encroachment | 14 days | 30 days | MCD Enforcement | Footpath or road usable again |
+| `other` | Other | 7 days | 14 days | MCD ward office | Problem gone |
+
+- **Fix target:** each issue gets `dueAt` (`createdAt` plus the category's days) and `overdue` (past `dueAt` and not resolved). The issue page shows "Fix due by" or "Overdue since". The officer queue and scorecard will use the same numbers.
+- **Problems that come back:**
+  - A new report of the same category within 50 m of an issue resolved inside the "comes back" window **reopens that issue** instead of starting a new one.
+  - It goes back to open, its `reopenCount` goes up, the resolution votes are cleared, the reporter is added as affected, and its history records "Reported again N days after it was marked fixed".
+  - The API answers `200 { issue, reopened: true, daysSinceFix }` instead of `201`, and the report flow shows "Reported again".
+  - A failed fix therefore stays on the ward's record instead of disappearing behind a fresh ticket.
+- **Departments** are shown to residents on the issue page. For the pilot, each ward has a single officer. Routing by department is the natural next step.
+- **Verification rules:** `verifyHint` and `verifyAfterDark` are already in the issue detail API. The voting screen (Phases 13–14) will show the hint and only accept streetlight confirmations after sunset.
+
+---
+
 ## Reporting an issue
 
 `/report` is a three-step flow. It's behind login, because `src/proxy.ts` sends logged-out visitors to `/login?next=/report`.
@@ -315,6 +357,24 @@ npm test
 3. **Details.** Phase 9 adds the form, the nearby-issues check and submission. Today this step shows the photo and location that will be sent.
 
 Going Back and forward keeps the photo and the pin. The photo preview is a local blob URL, released as soon as it's replaced or the flow is left.
+
+---
+
+## Officer accounts
+
+Officers are normal accounts with `role: "official"` and a `ward`. There's no public way to become one.
+
+- **How someone becomes an officer:** they register like anyone else. Then an admin promotes them, either with `POST /api/admin/officials` or with `npm run set-role -- --email … --role official --ward 78`.
+- **Only government addresses** (`@mcd.nic.in`, `@delhi.gov.in`) can be promoted through the API. The CLI flag `--any-domain` exists for demo accounts.
+- **Demo accounts:** `npm run seed:officials` creates one officer per pilot ward (for example `ward78.officer@pinpoint.test`, Anil Sharma) and `admin@pinpoint.test`, all using `DEMO_PASSWORD`.
+- **Roles are checked in the database.** The session cookie records the role at login and lasts 7 days, so trusting it would let a demoted officer keep access for up to a week. Every staff-only API calls `requireStaff()`, which reads the role fresh.
+- **Stale cookies refresh themselves.** When `/api/auth/me` sees that the stored role differs from the cookie, it re-issues the cookie. The header calls `/me` on every page, so a newly promoted officer gets the dashboard without logging out.
+- **`/dashboard` in the proxy:**
+  - logged-out visitors go to login
+  - residents get a 403 with an explanation page (`/not-allowed`) at the same URL
+  - officials and admins pass through
+
+The dashboard itself is Phase 11.
 
 ---
 
@@ -371,7 +431,9 @@ Shared pieces live in `src/components/ui` (generic) and `src/components/issue` (
 | `SeverityMeter` | Five segments, which turn brick from severity 4 up. Exposed as `role="meter"`. |
 | `Skeleton`, `IssueCardSkeleton`, `Spinner`, `EmptyState` | Loading and empty states, so no screen is ever blank. |
 
-`globals.css` imports Tailwind with `source("../")`, so it scans `src/` only. With the default project-root source, the Turbopack loader either misses classes in newly created files, or watches `.next/dev/logs`. Next 16 writes that log on every page load, which causes an endless dev reload loop. If you pulled an older version and the page keeps reloading, restart `npm run dev`.
+`globals.css` imports Tailwind with `source("../")`, so it scans `src/` only. With the default project-root source, the Turbopack loader misses classes in files created after the dev server started.
+
+**If every page keeps reloading in `npm run dev`** (the terminal prints `✓ Compiled in 1ms` after every request), stop the dev server, delete the `.next` folder and start it again. We've seen this a few times with Next 16 and Turbopack. We haven't found a reliable cause, and it never happens in production builds.
 
 Tailwind only generates classes it can find in the source, so colour classes are always written out in full in lookup tables (`bg-cat-pothole`, never `` `bg-cat-${category}` ``).
 
@@ -386,8 +448,7 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 10 sets up officer accounts:
+Phase 11 gives each officer their ward's work queue:
 
-- `scripts/make-official.ts` and an admin-only `POST /api/admin/officials` to assign the `official` role and a ward
-- `/dashboard` limited to the `official` and `admin` roles
-- one seeded officer per pilot ward, with tests for the role checks
+- `GET /api/dashboard/queue`: the officer's own ward only, ranked by people affected, then severity, then age, with an overdue flag
+- `/dashboard`: a table of the queue with status tabs, and a drawer with the photo and actions

@@ -1,5 +1,6 @@
 import type { Types } from "mongoose";
 import type { IIssue } from "@/models/Issue";
+import { CATEGORY_RULES, isOverdue, slaDueAt } from "./categories";
 import { fromGeoPoint } from "./geo";
 
 type WardRef = Types.ObjectId | { _id: Types.ObjectId; name: string; number: number } | undefined;
@@ -41,12 +42,19 @@ export function serializeIssue(issue: IssueDoc, viewerId?: string) {
     createdAt: issue.createdAt,
     updatedAt: issue.updatedAt,
     resolvedAt: issue.resolvedAt ?? null,
+    // Target date for a fix, from the per-category SLA in lib/categories.ts.
+    dueAt: slaDueAt(issue.category, issue.createdAt),
+    overdue: isOverdue(issue),
+    reopenCount: issue.reopenCount ?? 0,
   };
 }
 
 export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
   return {
     ...serializeIssue(issue, viewerId),
+    department: CATEGORY_RULES[issue.category].department,
+    verifyHint: CATEGORY_RULES[issue.category].verifyHint,
+    verifyAfterDark: CATEGORY_RULES[issue.category].verifyAfterDark,
     aiSuggestion: issue.aiSuggestion ?? null,
     verification: {
       confirms: issue.verification?.confirms.length ?? 0,
