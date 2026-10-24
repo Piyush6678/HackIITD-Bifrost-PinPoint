@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import type { LatLngBoundsExpression } from "leaflet";
 import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
 import { PILOT_CENTRE } from "@/data/pilotWards";
+import { IssueLayer } from "./IssueLayer";
 import { WardLayer } from "./WardLayer";
 
 // Roughly Delhi. Keeps people from panning off into an empty map by accident.
@@ -30,6 +31,7 @@ export default function MapView() {
         maxZoom={19}
       />
       <WardLayer />
+      <IssueLayer />
       <ZoomControl position="bottomright" />
     </MapContainer>
   );

@@ -17,6 +17,9 @@ Built by **Team Bifrost** for HackIIITD 2026 (Esya '26, IIIT Delhi). Open Innova
 
 ## Status
 
+The full build plan, split into two parallel tracks with API contracts, is in [`plan.md`](plan.md). The architecture, trust model and design decisions are in [`tech.md`](tech.md).
+
+
 We are building in phases. This README documents what exists today.
 
 | Phase | Scope | State |
@@ -25,23 +28,23 @@ We are building in phases. This README documents what exists today.
 | 1 | Backend core: auth, issues, duplicate detection, upvotes, wards | Done |
 | 2 | Design tokens, fonts, logo, app shell | Done |
 | 3 | UI primitives: buttons, fields, status pills, category icons | Done |
-| **4** | **Client API layer, login and register pages** | **Done** |
-| 5 | Base map with ward outlines | Next |
-| 6 | Issue pins on the map | Planned |
-| 7 | Side panel, filters and sorting | Planned |
-| 8 | Issue detail page and upvoting | Planned |
-| 9 | Report flow: photo and location | Planned |
-| 10 | Report flow: details, duplicate check, submit | Planned |
-| 11 | Gemini tagging API | Planned |
-| 12 | Gemini suggestions in the report flow | Planned |
-| 13 | Official roles and the ward work queue API | Planned |
-| 14 | Official dashboard | Planned |
-| 15 | Status workflow with proof-of-fix photo | Planned |
-| 16 | Community verification API (3 votes within 300 m) | Planned |
-| 17 | Verification screen | Planned |
-| 18 | Live updates over Server-Sent Events | Planned |
-| 19 | Public ward scorecard | Planned |
-| 20 | TinyFish agents (file, sync, escalate), demo data, launch | Planned |
+| 4 | Client API layer, login and register pages | Done |
+| 5 | Base map with ward outlines | Done |
+| **6** | **Issue pins on the map** | **Done** |
+| 7 | Issue page and upvoting | Next |
+| 8 | Report flow: photo and location | Planned |
+| 9 | Report flow: details, duplicate check, submit | Planned |
+| 10 | Officer accounts and ward assignment | Planned |
+| 11 | Officer work queue for their ward | Planned |
+| 12 | Officer marks a fix with an on-site, GPS-checked after-photo | Planned |
+| 13 | Verification API: 3 nearby residents confirm or reject | Planned |
+| 14 | Verification screen: before/after and vote | Planned |
+| 15 | Gemini: tagging reports and checking before/after photos | Planned |
+| 16 | Public officer and ward scorecards | Planned |
+| 17 | Alerts: reporters and upvoters asked to verify fixes | Planned |
+| 18 | Escalation: evidence pack, councillor petition, RTI draft | Planned |
+| 19 | TinyFish: file to MCD-311 / Swachhata and sync status | Planned |
+| 20 | Demo data, polish, demo script | Planned |
 
 ---
 
@@ -53,7 +56,8 @@ We are building in phases. This README documents what exists today.
 - **jose** (HS256 JWT) in an httpOnly cookie, **bcryptjs** for password hashing
 - **Vitest** with `mongodb-memory-server` for tests against a real `mongod`
 - **Tailwind CSS 4** with theme tokens in CSS, and fonts self-hosted through `next/font`
-- Coming up: Leaflet with OpenStreetMap, Google Gemini, TinyFish
+- **Leaflet** (react-leaflet 5) with **OpenStreetMap** tiles. There's no map API key and no billing.
+- Coming up: Google Gemini, TinyFish
 
 ---
 
@@ -109,7 +113,7 @@ The first `npm test` downloads a MongoDB binary, so it is slower than later runs
 src/
   app/
     layout.tsx             fonts, metadata, app shell
-    page.tsx               home: info panel + map area
+    page.tsx               home: info panel + live map
     not-found.tsx          404 page
     login/, register/      auth pages
     globals.css            Tailwind theme tokens (colours, radii, shadows)
@@ -120,6 +124,7 @@ src/
     Logo.tsx               ring mark and wordmark
     UserMenu.tsx           "Log in" link or avatar menu with logout
     auth/                  AuthLayout · LoginForm · RegisterForm
+    map/                   HomeMap (client-only loader) · MapView · WardLayer · IssueLayer · IssuePopup · issuePin · MapPlaceholder
     ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState · Alert
     issue/                 StatusPill · CategoryIcon · SeverityMeter
   app/api/                 Route handlers (one folder per endpoint)
@@ -141,6 +146,7 @@ src/
     api.ts                 client fetch wrapper, throws ApiError with field errors
     safeNext.ts            validates ?next= redirect targets
   hooks/useSession.ts      who is logged in, shared across the tab
+  hooks/useIssues.ts       issues for the visible map area (debounced, cancels stale requests)
   proxy.ts                 page-level redirects for logged-in / logged-out users
   models/                  User · Issue · Photo · Ward
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
@@ -265,6 +271,31 @@ npm test
 
 ---
 
+## The map
+
+- **Client-only:** Leaflet needs `window`, so `HomeMap` loads `MapView` with `next/dynamic` and `ssr: false`. While it loads, the same street-block pattern the page used before is shown, so nothing jumps.
+- **Tiles:** standard OpenStreetMap tiles, desaturated with a CSS filter on the tile pane. The basemap stays quiet, and our pins and status colours carry the meaning.
+- **Ward outlines:**
+  - They come from `GET /api/wards?boundary=true` and are drawn as dashed pine polygons.
+  - Hovering a ward makes its outline solid.
+  - The map fits itself to the six pilot wards on load, whatever the screen size.
+  - If the request fails, the map still works without outlines.
+- **Ward labels:** they're permanent, because phones have no hover. Below zoom 14 they collapse to just the ward number, so they don't overlap on small screens.
+- **Bounds:** panning is softly limited to Delhi, and zoom is limited to levels 12–19.
+- **Stacking:** the map section uses `isolation: isolate`. Leaflet's panes use z-indexes of 400–1000, and without this they would draw over the sticky header and the account menu.
+- **Seed data:** run `npm run seed:wards` once per database, or the map shows no outlines.
+- **Issues for the visible area:** `useIssues` asks `/api/issues?bbox=…` for whatever is on screen whenever the map stops moving.
+  - Requests are debounced by 250 ms, and a request still in flight is aborted when a newer one starts, so fast panning never shows stale pins.
+  - A small chip in the corner shows "Loading issues", the count in view, or "Couldn't load issues · Retry".
+- **Pins:**
+  - The fill is the category colour and the ring is the status colour, with a white gap so both read.
+  - Size grows with the log of upvotes (18–32 px), so one viral issue doesn't hide its neighbours.
+  - Busier issues draw on top, a count badge appears from 2 upvotes, and resolved issues fade back but stay on the map as a record.
+  - Pin icons are cached by their visual inputs, so re-renders don't rebuild the DOM.
+- **Popup:** shows the category, status, title, ward and age, how many people are affected, and a link to the issue page. The opened pin gets a halo.
+
+---
+
 ## Sessions in the browser
 
 - **Cookie:** logging in or registering sets the httpOnly `pp_session` cookie. Page JavaScript never sees the token.
@@ -318,7 +349,7 @@ Shared pieces live in `src/components/ui` (generic) and `src/components/issue` (
 | `SeverityMeter` | Five segments, which turn brick from severity 4 up. Exposed as `role="meter"`. |
 | `Skeleton`, `IssueCardSkeleton`, `Spinner`, `EmptyState` | Loading and empty states, so no screen is ever blank. |
 
-`globals.css` declares `@source "../"`. Without it, Tailwind's Turbopack loader doesn't watch the project root, so classes in newly created files never reach the dev server's CSS until a restart.
+`globals.css` imports Tailwind with `source("../")`, so it scans `src/` only. With the default project-root source, the Turbopack loader either misses classes in newly created files, or watches `.next/dev/logs`. Next 16 writes that log on every page load, which causes an endless dev reload loop. If you pulled an older version and the page keeps reloading, restart `npm run dev`.
 
 Tailwind only generates classes it can find in the source, so colour classes are always written out in full in lookup tables (`bg-cat-pothole`, never `` `bg-cat-${category}` ``).
 
@@ -333,8 +364,10 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 5 replaces the placeholder on the home page with the real map:
+The product now centres on a closed loop. A citizen reports a problem, and the ward officer fixes it and posts an on-site after-photo. Nearby residents then confirm or reject the fix, and the result goes on the officer's public record.
 
-- Leaflet with OpenStreetMap tiles, loaded only in the browser
-- centred on the pilot area, with the six ward outlines drawn from `/api/wards?boundary=true`
-- ward names on hover
+Phase 7 is the issue page that the loop runs through:
+
+- the photo, the metadata, the status timeline and a mini map
+- an upvote button that updates instantly and rolls back if the request fails
+- a share link

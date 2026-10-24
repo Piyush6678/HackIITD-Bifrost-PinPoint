@@ -1,8 +1,7 @@
-@import "tailwindcss";
-
-/* Without an explicit source, Tailwind's Turbopack loader doesn't watch the
-   project root, so classes in newly created files never reach the dev CSS. */
-@source "../";
+/* Scan src/ only. With the default (the project root), the Turbopack loader
+   either misses new files or, in Next 16, also watches .next/dev/logs, which
+   the dev server writes on every page load: an endless reload loop. */
+@import "tailwindcss" source("../");
 
 @theme {
   /* Brand, taken from the pitch deck */
@@ -83,4 +82,134 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-mint);
   outline-offset: 2px;
+}
+
+/* Leaflet, restyled to sit inside the PinPoint palette. */
+.leaflet-container {
+  background: #e4ece9;
+  font-family: var(--font-sans);
+}
+
+/* Standard OSM tiles are loud; taking the saturation down lets our pins carry the colour. */
+.leaflet-tile-pane {
+  filter: saturate(0.4) brightness(1.03) contrast(0.95);
+}
+
+.leaflet-bar {
+  overflow: hidden;
+  border: 1px solid var(--color-line) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  width: 34px;
+  height: 34px;
+  line-height: 32px;
+  color: var(--color-pine);
+  font-weight: 400;
+}
+
+.leaflet-bar a:hover {
+  background: var(--color-mist);
+}
+
+.leaflet-control-attribution {
+  border-top-left-radius: 6px;
+  background: rgb(255 255 255 / 0.85) !important;
+  color: var(--color-ink-faint);
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-brand);
+}
+
+.ward-label {
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: none;
+  padding: 2px 6px;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.ward-label b {
+  color: var(--color-pine);
+  font-weight: 500;
+}
+
+/* Leaflet draws a little arrow on tooltips; centred labels don't need it. */
+.ward-label::before {
+  display: none;
+}
+
+.wards-compact .ward-label span {
+  display: none;
+}
+
+/* Issue pins: category in the fill, status in the ring, white gap between so both read. */
+.pin {
+  position: relative;
+  display: block;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: var(--pin);
+  box-shadow:
+    0 0 0 2.5px var(--ring),
+    0 2px 6px rgb(18 33 31 / 0.3);
+  transition: transform 120ms ease;
+}
+
+.leaflet-marker-icon:hover .pin,
+.leaflet-marker-icon:focus-visible .pin {
+  transform: scale(1.12);
+}
+
+.pin-active {
+  box-shadow:
+    0 0 0 3px var(--ring),
+    0 0 0 7px rgb(255 255 255 / 0.7),
+    0 4px 12px rgb(18 33 31 / 0.35);
+}
+
+/* Resolved issues stay visible as a record, but step back. */
+.pin-resolved {
+  opacity: 0.55;
+}
+
+.pin-count {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  min-width: 18px;
+  border-radius: 9999px;
+  background: var(--color-pine);
+  padding: 1px 4px;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 14px;
+  text-align: center;
+}
+
+.issue-popup .leaflet-popup-content-wrapper {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+.issue-popup .leaflet-popup-content {
+  margin: 14px 16px;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.issue-popup .leaflet-popup-content p {
+  margin: 0;
 }

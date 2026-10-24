@@ -1,4 +1,5 @@
 import { StatusDot } from "@/components/issue/StatusPill";
+import { HomeMap } from "@/components/map/HomeMap";
 import { STATUSES, STATUS_LABELS } from "@/lib/constants";
 
 const STEPS = [
@@ -52,39 +53,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <MapArea />
+      <section aria-label="Map" className="relative isolate order-1 h-[45vh] md:order-2 md:h-auto">
+        <HomeMap />
+      </section>
     </div>
-  );
-}
-
-// Stand-in for the Leaflet map that replaces it in phase 5. Kept the same
-// size and position so the layout doesn't shift when the real map arrives.
-function MapArea() {
-  return (
-    <section
-      aria-label="Map"
-      className="relative order-1 min-h-[42vh] overflow-hidden bg-[#e4ece9] md:order-2 md:min-h-0"
-    >
-      <svg className="absolute inset-0 size-full" aria-hidden>
-        <defs>
-          <pattern id="blocks" width="120" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
-            <rect width="120" height="90" fill="#e4ece9" />
-            <rect x="8" y="8" width="104" height="74" rx="3" fill="#edf2f0" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#blocks)" />
-        <path d="M-50 380 C 300 330, 600 460, 1600 300" stroke="#fff" strokeWidth="18" fill="none" />
-        <path d="M640 -40 L 520 1200" stroke="#fff" strokeWidth="12" fill="none" />
-      </svg>
-
-      <div className="absolute inset-0 grid place-items-center p-6">
-        <div className="max-w-xs text-balance rounded-card bg-white/95 px-5 py-4 text-center shadow-card">
-          <p className="eyebrow text-brand">Live map</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-            Issues across the six pilot wards will appear here.
-          </p>
-        </div>
-      </div>
-    </section>
   );
 }
