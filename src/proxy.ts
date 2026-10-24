@@ -4,8 +4,11 @@ import { SESSION_COOKIE, type Role } from "@/lib/constants";
 
 // Pages only. API routes check the session (and re-check roles in the database)
 // themselves, so this is a convenience redirect, not the security boundary.
-const NEEDS_LOGIN = ["/report", "/dashboard"];
-const NEEDS_ROLE: { base: string; roles: Role[] }[] = [{ base: "/dashboard", roles: ["official", "admin"] }];
+const NEEDS_LOGIN = ["/report", "/dashboard", "/admin", "/officer-access"];
+const NEEDS_ROLE: { base: string; roles: Role[]; explain: string }[] = [
+  { base: "/dashboard", roles: ["official", "admin"], explain: "/not-allowed" },
+  { base: "/admin", roles: ["admin"], explain: "/not-allowed/admin" },
+];
 const LOGGED_OUT_ONLY = ["/login", "/register"];
 
 const matches = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`);
@@ -24,7 +27,7 @@ export async function proxy(req: NextRequest) {
   const rule = NEEDS_ROLE.find(({ base }) => matches(pathname, base));
   if (session && rule && !rule.roles.includes(session.role)) {
     // Show an explanation at the same URL instead of bouncing them somewhere confusing.
-    return NextResponse.rewrite(new URL("/not-allowed", req.url), { status: 403 });
+    return NextResponse.rewrite(new URL(rule.explain, req.url), { status: 403 });
   }
 
   if (session && LOGGED_OUT_ONLY.includes(pathname)) {
@@ -35,5 +38,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/report/:path*", "/dashboard/:path*", "/login", "/register"],
+  matcher: ["/report/:path*", "/dashboard/:path*", "/admin/:path*", "/officer-access", "/login", "/register"],
 };

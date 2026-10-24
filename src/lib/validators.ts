@@ -1,6 +1,6 @@
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
-import { CATEGORIES, NEARBY_MAX_RADIUS_M, STATUSES } from "./constants";
+import { CATEGORIES, NEARBY_MAX_RADIUS_M, REQUEST_STATUSES, STATUSES } from "./constants";
 import { HttpError } from "./http";
 
 const latN = z.number().min(-90).max(90);
@@ -99,4 +99,66 @@ export function objectId(id: string) {
 export const makeOfficialSchema = z.object({
   email,
   wardNumber: z.coerce.number().int().positive("Pick a ward"),
+});
+
+export const queueSchema = z.object({
+  status: z.enum(STATUSES).default("open"),
+  // Admins aren't tied to a ward, so they pick one. Officials always get their own.
+  ward: z.coerce.number().int().positive().optional(),
+});
+
+const note = z.string().trim().max(500, "Keep the note under 500 characters").optional();
+
+// Multipart, like issue reports. The photo and GPS fields only matter when marking it fixed.
+export const statusChangeSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("in_progress"), note }),
+  z.object({
+    status: z.literal("pending_verification"),
+    note,
+    lat,
+    lng,
+    accuracy: z.coerce.number().min(0, "accuracy must be in metres"),
+    // When the camera took the photo, in ms since epoch, as the phone reported it.
+    takenAt: z.coerce.number().int().positive(),
+  }),
+]);
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `Keep it under ${max} characters`)
+    .optional()
+    .transform((v) => v || undefined);
+
+export const officerRequestSchema = z.object({
+  wardNumber: z.coerce.number().int().positive("Pick your ward"),
+  designation: z.string().trim().min(2, "Enter your designation").max(80),
+  department: z.string().trim().min(2, "Enter your department").max(80),
+  employeeId: optionalText(40),
+  phone: optionalText(20),
+  note: optionalText(500),
+});
+
+export const listRequestsSchema = z.object({
+  status: z.enum(REQUEST_STATUSES).default("pending"),
+});
+
+export const reviewRequestSchema = z.discriminatedUnion("decision", [
+  z.object({
+    decision: z.literal("approve"),
+    // The admin can correct the ward the person asked for.
+    wardNumber: z.coerce.number().int().positive().optional(),
+    // Needed when the account doesn't use a government email; the admin vouches for it.
+    anyDomain: z.boolean().default(false),
+    note: optionalText(500),
+  }),
+  z.object({ decision: z.literal("reject"), note: z.string().trim().min(3, "Say why, so they know what to fix").max(500) }),
+]);
+
+export const voteSchema = z.object({
+  vote: z.enum(["confirm", "reject"]),
+  lat: latN,
+  lng: lngN,
+  accuracy: z.number().min(0, "accuracy must be in metres"),
 });

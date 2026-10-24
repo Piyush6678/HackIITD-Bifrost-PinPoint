@@ -83,14 +83,19 @@ export function UserMenu() {
             </p>
           </div>
           {user.role !== "citizen" && (
-            <Link
-              href="/dashboard"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="block w-full px-4 py-2.5 text-left text-sm font-bold text-ink transition-colors hover:bg-mist"
-            >
+            <MenuLink href="/dashboard" onClick={() => setOpen(false)}>
               Ward dashboard
-            </Link>
+            </MenuLink>
+          )}
+          {user.role === "admin" && (
+            <MenuLink href="/admin" onClick={() => setOpen(false)}>
+              Officer access requests
+            </MenuLink>
+          )}
+          {user.role === "citizen" && (
+            <MenuLink href="/officer-access" onClick={() => setOpen(false)}>
+              I&apos;m a ward officer
+            </MenuLink>
           )}
           <button
             type="button"
@@ -103,5 +108,18 @@ export function UserMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+function MenuLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      role="menuitem"
+      onClick={onClick}
+      className="block w-full px-4 py-2.5 text-left text-sm font-bold text-ink transition-colors hover:bg-mist"
+    >
+      {children}
+    </Link>
   );
 }

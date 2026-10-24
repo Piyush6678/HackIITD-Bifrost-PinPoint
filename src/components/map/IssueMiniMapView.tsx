@@ -1,7 +1,7 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import { Marker, TileLayer } from "react-leaflet";
+import { LeafletMap } from "./LeafletMap";
 import type { PublicIssue } from "@/lib/serialize";
 import { issuePin } from "./issuePin";
 
@@ -9,7 +9,7 @@ export default function IssueMiniMapView({ issue }: { issue: PublicIssue }) {
   const position: [number, number] = [issue.location.lat, issue.location.lng];
 
   return (
-    <MapContainer
+    <LeafletMap
       center={position}
       zoom={16}
       minZoom={13}
@@ -23,6 +23,6 @@ export default function IssueMiniMapView({ issue }: { issue: PublicIssue }) {
         maxZoom={19}
       />
       <Marker position={position} icon={issuePin(issue)} title={issue.title} alt={issue.title} />
-    </MapContainer>
+    </LeafletMap>
   );
 }

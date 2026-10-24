@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
-import { CATEGORY_LABELS, formatCoords, formatDate, timeAgo } from "@/lib/format";
+import { CATEGORY_LABELS, formatCoords, formatDate, formatDistance, timeAgo } from "@/lib/format";
 import type { serializeIssueDetail } from "@/lib/serialize";
 import { IssueMiniMap } from "../map/IssueMiniMap";
 import { Alert } from "../ui/Alert";
@@ -18,6 +18,7 @@ import { SeverityMeter } from "./SeverityMeter";
 import { StatusPill } from "./StatusPill";
 import { StatusTimeline } from "./StatusTimeline";
 import { UpvoteButton } from "./UpvoteButton";
+import { VerifyPanel, type Outcome } from "./VerifyPanel";
 
 type IssueDetail = ReturnType<typeof serializeIssueDetail>;
 
@@ -43,6 +44,8 @@ export function IssueView() {
 
   // Bumped by "Try again" to re-run the fetch effect.
   const [attempt, setAttempt] = useState(0);
+  // Set when this visitor's vote was the one that decided the fix.
+  const [outcome, setOutcome] = useState<Outcome>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +120,38 @@ export function IssueView() {
 
           <SeverityMeter value={issue.severity} className="mt-3" />
 
+          {outcome && (
+            <div className="mt-4">
+              <Alert tone="info">
+                {outcome === "verified"
+                  ? "Your vote settled it: residents have verified the fix."
+                  : "Your vote settled it: residents say it isn't fixed, so it's back with the ward officer."}
+              </Alert>
+            </div>
+          )}
+
+          {issue.failedVerifications > 0 && (
+            <div className="mt-4">
+              <Alert tone="info">
+                Verification failed {issue.failedVerifications}{" "}
+                {issue.failedVerifications === 1 ? "time" : "times"}: residents said an earlier fix from the ward
+                officer wasn&apos;t done.
+              </Alert>
+            </div>
+          )}
+
+          {issue.status === "pending_verification" && (
+            <div className="mt-5">
+              <VerifyPanel
+                issue={issue}
+                onVoted={(next, result) => {
+                  setState({ status: "ready", issue: next });
+                  setOutcome(result);
+                }}
+              />
+            </div>
+          )}
+
           {issue.reopenCount > 0 && (
             <div className="mt-4">
               <Alert tone="info">
@@ -139,6 +174,26 @@ export function IssueView() {
                 className="object-cover"
               />
             </div>
+          )}
+
+          {issue.resolutionPhotoUrl && issue.fix && (
+            <figure className="mt-5">
+              <div className="relative aspect-4/3 overflow-hidden rounded-card border border-line bg-mist">
+                <Image
+                  src={issue.resolutionPhotoUrl}
+                  alt={`The ward officer's after-photo for: ${issue.title}`}
+                  fill
+                  unoptimized
+                  sizes="(min-width: 1024px) 640px, 100vw"
+                  className="object-cover"
+                />
+              </div>
+              <figcaption className="mt-2 text-sm text-ink-soft">
+                <span className="font-bold text-ink">After.</span> Posted by the ward officer {timeAgo(issue.fix.at)},
+                taken {formatDistance(issue.fix.distance)} from the reported spot.
+                {issue.fix.note && <span className="mt-1 block">&ldquo;{issue.fix.note}&rdquo;</span>}
+              </figcaption>
+            </figure>
           )}
 
           {issue.description && (

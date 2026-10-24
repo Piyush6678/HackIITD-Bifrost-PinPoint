@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { pilotWards } from "../src/data/pilotWards";
 import { connectDB } from "../src/lib/db";
 import { Issue } from "../src/models/Issue";
+import { OfficerRequest } from "../src/models/OfficerRequest";
 import { Ward } from "../src/models/Ward";
 
 async function main() {
@@ -11,7 +12,7 @@ async function main() {
     await Ward.updateOne({ number: ward.number }, { $set: ward }, { upsert: true });
   }
   // Make sure the geo indexes exist before the first request needs them.
-  await Promise.all([Ward.syncIndexes(), Issue.syncIndexes()]);
+  await Promise.all([Ward.syncIndexes(), Issue.syncIndexes(), OfficerRequest.syncIndexes()]);
 
   console.log(`Seeded ${pilotWards.length} wards`);
 }

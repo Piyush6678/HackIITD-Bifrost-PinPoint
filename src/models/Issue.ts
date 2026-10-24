@@ -19,6 +19,9 @@ export interface IIssue {
   reporter: Types.ObjectId;
   photo: Types.ObjectId;
   resolutionPhoto?: Types.ObjectId;
+  // Where and when the officer said it was fixed. Kept so residents (and Gemini
+  // later) can judge the after-photo, and so a rejected fix stays on record.
+  fix?: { by: Types.ObjectId; at: Date; location: GeoPoint; accuracy: number; distance: number; note?: string };
   upvotes: Types.ObjectId[];
   upvoteCount: number;
   // Both kept so we can measure how often people override the model.
@@ -31,8 +34,10 @@ export interface IIssue {
   portal?: { name: string; ticketId?: string; expectedBy?: Date; lastSyncedAt?: Date };
   statusHistory: { status: Status; at: Date; by?: Types.ObjectId; note?: string }[];
   resolvedAt?: Date;
-  // Times a fix didn't hold: residents rejected it, or the problem came back soon after.
+  // Times the problem came back soon after it was resolved.
   reopenCount: number;
+  // Times residents voted that the officer's fix wasn't done.
+  failedVerifications: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +75,18 @@ const issueSchema = new Schema<IIssue, IssueModel>(
     reporter: { type: Schema.Types.ObjectId, ref: "User", required: true },
     photo: { type: Schema.Types.ObjectId, ref: "Photo", required: true },
     resolutionPhoto: { type: Schema.Types.ObjectId, ref: "Photo" },
+    fix: {
+      _id: false,
+      by: { type: Schema.Types.ObjectId, ref: "User" },
+      at: Date,
+      location: {
+        type: { type: String, enum: ["Point"] },
+        coordinates: [Number],
+      },
+      accuracy: Number,
+      distance: Number,
+      note: { type: String, trim: true, maxlength: 500 },
+    },
     upvotes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     upvoteCount: { type: Number, default: 0 },
     aiSuggestion: tagging,
@@ -96,6 +113,7 @@ const issueSchema = new Schema<IIssue, IssueModel>(
     ],
     resolvedAt: Date,
     reopenCount: { type: Number, default: 0 },
+    failedVerifications: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

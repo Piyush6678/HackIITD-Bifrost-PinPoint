@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 import type { IIssue } from "@/models/Issue";
 import { CATEGORY_RULES, isOverdue, slaDueAt } from "./categories";
+import { VERIFY_VOTES_NEEDED } from "./constants";
 import { fromGeoPoint } from "./geo";
 
 type WardRef = Types.ObjectId | { _id: Types.ObjectId; name: string; number: number } | undefined;
@@ -46,6 +47,7 @@ export function serializeIssue(issue: IssueDoc, viewerId?: string) {
     dueAt: slaDueAt(issue.category, issue.createdAt),
     overdue: isOverdue(issue),
     reopenCount: issue.reopenCount ?? 0,
+    failedVerifications: issue.failedVerifications ?? 0,
   };
 }
 
@@ -56,12 +58,27 @@ export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
     verifyHint: CATEGORY_RULES[issue.category].verifyHint,
     verifyAfterDark: CATEGORY_RULES[issue.category].verifyAfterDark,
     aiSuggestion: issue.aiSuggestion ?? null,
+    // How far from the issue the officer stood when they took the after-photo.
+    fix: issue.fix?.at
+      ? { at: issue.fix.at, distance: issue.fix.distance, accuracy: issue.fix.accuracy, note: issue.fix.note ?? null }
+      : null,
     verification: {
       confirms: issue.verification?.confirms.length ?? 0,
       rejects: issue.verification?.rejects.length ?? 0,
+      needed: VERIFY_VOTES_NEEDED,
     },
+    // Only the viewer's own vote. Who else voted is never public.
+    myVote: myVote(issue, viewerId),
     statusHistory: issue.statusHistory.map(({ status, at, note }) => ({ status, at, note: note ?? null })),
   };
 }
 
 export type PublicIssue = ReturnType<typeof serializeIssue>;
+
+function myVote(issue: IssueDoc, viewerId?: string): "confirm" | "reject" | null {
+  if (!viewerId || !issue.verification) return null;
+  const mine = (votes: { user?: Types.ObjectId }[]) => votes.some((v) => String(v.user) === viewerId);
+  if (mine(issue.verification.confirms)) return "confirm";
+  if (mine(issue.verification.rejects)) return "reject";
+  return null;
+}

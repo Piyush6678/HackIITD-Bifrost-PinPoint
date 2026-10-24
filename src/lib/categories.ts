@@ -84,3 +84,18 @@ export function isOverdue(
 export function recurrenceCutoff(category: Category, now: Date = new Date()) {
   return new Date(now.getTime() - CATEGORY_RULES[category].recurrenceDays * DAY_MS);
 }
+
+// Streetlights are only judged at night, 6:30 pm to 5:30 am in Delhi, whatever
+// time zone the server runs in.
+const IST_TIME = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+export function isAfterDark(now: Date = new Date()) {
+  const [hours, minutes] = IST_TIME.format(now).split(":").map(Number);
+  const minute = hours * 60 + minutes;
+  return minute >= 18 * 60 + 30 || minute < 5 * 60 + 30;
+}

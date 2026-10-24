@@ -1,7 +1,7 @@
 import { User } from "@/models/User";
 import { Ward } from "@/models/Ward";
 import { requireUser } from "./auth";
-import { OFFICIAL_EMAIL_DOMAINS, type Role } from "./constants";
+import { isOfficialEmail, OFFICIAL_EMAIL_DOMAINS, type Role } from "./constants";
 import { connectDB } from "./db";
 import { HttpError } from "./http";
 
@@ -16,11 +16,6 @@ export async function requireStaff(req: Request, ...roles: Role[]) {
   if (!roles.includes(user.role)) throw new HttpError(403, "You don't have access to this");
 
   return user;
-}
-
-export function isOfficialEmail(email: string) {
-  const domain = email.trim().toLowerCase().split("@")[1];
-  return Boolean(domain) && OFFICIAL_EMAIL_DOMAINS.includes(domain);
 }
 
 export async function makeOfficial(email: string, wardNumber: number, { anyDomain = false } = {}) {

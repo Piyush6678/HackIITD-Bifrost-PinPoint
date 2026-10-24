@@ -64,6 +64,11 @@ export function QueueTable({ issues, selectedId, onSelect }: Props) {
                   {issue.title}
                 </button>
                 {issue.overdue && <span className="mt-0.5 block text-[0.6875rem] font-bold text-brick">Overdue</span>}
+                {issue.failedVerifications > 0 && (
+                  <span className="mt-0.5 block text-[0.6875rem] font-bold text-brick">
+                    Verification failed {issue.failedVerifications}×
+                  </span>
+                )}
               </td>
               <td className="hidden px-3 py-3 md:table-cell">
                 <span className="flex items-center gap-1.5 text-sm text-ink-soft">

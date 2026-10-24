@@ -1,11 +1,11 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
 import { divIcon, type LeafletEvent, type Marker as LeafletMarker } from "leaflet";
 import { useEffect } from "react";
-import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvent } from "react-leaflet";
+import { Circle, Marker, TileLayer, useMap, useMapEvent } from "react-leaflet";
 import { PILOT_CENTRE } from "@/data/pilotWards";
 import type { LatLng } from "@/lib/geo";
+import { LeafletMap } from "../map/LeafletMap";
 import { WardLayer } from "../map/WardLayer";
 
 export type PickedPlace = LatLng & { accuracy: number | null; source: "gps" | "manual" };
@@ -30,7 +30,7 @@ export default function LocationPickerMap({ value, focus, onPick, onCentreChange
   const start = value ?? PILOT_CENTRE;
 
   return (
-    <MapContainer center={[start.lat, start.lng]} zoom={value ? 17 : 14} minZoom={12} maxZoom={19} className="absolute inset-0">
+    <LeafletMap center={[start.lat, start.lng]} zoom={value ? 17 : 14} minZoom={12} maxZoom={19} className="absolute inset-0">
       <TileLayer
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -58,7 +58,7 @@ export default function LocationPickerMap({ value, focus, onPick, onCentreChange
           }}
         />
       )}
-    </MapContainer>
+    </LeafletMap>
   );
 }
 

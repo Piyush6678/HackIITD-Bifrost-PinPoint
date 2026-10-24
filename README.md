@@ -17,7 +17,7 @@ Built by **Team Bifrost** for HackIIITD 2026 (Esya '26, IIIT Delhi). Open Innova
 
 ## Status
 
-The full build plan, split into two parallel tracks with API contracts, is in [`plan.md`](plan.md). The architecture, trust model and design decisions are in [`tech.md`](tech.md).
+What is built so far, and how each part is used, is in [`features.md`](features.md). The detailed plan for the remaining phases (13–20), with API contracts, rules and tests, is in [`plan.md`](plan.md).
 
 
 We are building in phases. This README documents what exists today.
@@ -35,10 +35,10 @@ We are building in phases. This README documents what exists today.
 | **8** | **Report flow: photo and location** | **Done** |
 | 9 | Report flow: details, duplicate check, submit | Done |
 | **10** | **Officer accounts and ward assignment** | **Done** |
-| 11 | Officer work queue for their ward | Dashboard UI done, queue API next |
-| 12 | Officer marks a fix with an on-site, GPS-checked after-photo | Planned |
-| 13 | Verification API: 3 nearby residents confirm or reject | Planned |
-| 14 | Verification screen: before/after and vote | Planned |
+| 11 | Officer work queue for their ward, plus officer access requests | Done |
+| **12** | **Officer marks a fix with an on-site, GPS-checked after-photo** | **Done** |
+| **13** | **Verification API: 3 nearby residents confirm or reject** | **Done** |
+| 14 | Verification screen: before/after and vote | Buttons and tallies done; the rest is next |
 | 15 | Gemini: tagging reports and checking before/after photos | Planned |
 | 16 | Public officer and ward scorecards | Planned |
 | 17 | Alerts: reporters and upvoters asked to verify fixes | Planned |
@@ -127,13 +127,20 @@ src/
     Logo.tsx               ring mark and wordmark
     UserMenu.tsx           "Log in" link or avatar menu with logout
     auth/                  AuthLayout · LoginForm · RegisterForm
+    dashboard/             Dashboard · QueueTable · IssueDrawer · FixCapture (live camera + GPS check)
+    admin/                 AdminPanel · RequestCard · OfficialsTable
+    officer/               OfficerAccess (request officer access, see its status)
+    RecheckAccess.tsx      reloads a 403 page once the refreshed session allows it
     report/                ReportFlow · Stepper · PhotoStep · LocationStep · LocationPickerMap
     map/                   HomeMap (client-only loader) · MapView · WardLayer · IssueLayer · IssuePopup · issuePin · MapPlaceholder
     ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState · Alert
     issue/                 StatusPill · CategoryIcon · SeverityMeter
   app/api/                 Route handlers (one folder per endpoint)
     auth/                  register · login · logout · me
-    issues/                list · create · nearby · [id] · [id]/upvote
+    issues/                list · create · nearby · [id] · [id]/upvote · [id]/status
+    dashboard/queue/       the officer's ranked work queue
+    officer-requests/      ask for officer access, see or withdraw your request
+    admin/                 officials · officer-requests (review)
     photos/[id]/           serves stored images
     wards/                 pilot ward list
   lib/
@@ -150,12 +157,14 @@ src/
     api.ts                 client fetch wrapper, throws ApiError with field errors
     safeNext.ts            validates ?next= redirect targets
     officials.ts           requireStaff (role from the database), makeOfficial, removeOfficial
+    officerRequests.ts     request shape, reviewRequest (approve or reject, safe against double clicks)
     compressPhoto.ts       in-browser photo compression (about 120 KB JPEG, 1600 px max)
   hooks/useSession.ts      who is logged in, shared across the tab
   hooks/useIssues.ts       issues for the visible map area (debounced, cancels stale requests)
+  hooks/useQueue.ts        the ward queue for one status tab, with counts per status
   hooks/useWards.ts        ward boundaries, fetched once and shared; wardAt() finds the ward for a point
   proxy.ts                 page-level redirects for logged-in / logged-out users
-  models/                  User · Issue · Photo · Ward
+  models/                  User · Issue · Photo · Ward · OfficerRequest
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
 scripts/                  seed-wards · seed-officials · set-role
 tests/                     Vitest suites + in-memory MongoDB setup
@@ -214,10 +223,38 @@ curl -b cookies.txt http://localhost:3000/api/issues \
   -F lat=28.6519 -F lng=77.1909 -F photo=@pothole.jpg
 ```
 
+| POST | `/api/issues/:id/confirm` | resident | `{ vote: "confirm" \| "reject", lat, lng, accuracy }`. Returns `{ issue, outcome }`, where `outcome` is `"verified"`, `"failed"` or `null`. Described under "Residents verifying a fix". |
+| PATCH | `/api/issues/:id/status` | official of the issue's ward | Multipart form, described below. Returns the updated issue detail. |
+
+Fields for changing status (`multipart/form-data`). Officers can never set `resolved`; only residents confirming the fix can (Phase 13).
+
+| `status` | Allowed from | Other fields |
+| --- | --- | --- |
+| `in_progress` | `open` | `note` (optional, up to 500 characters) |
+| `pending_verification` | `open`, `in_progress` | `photo` (required), `lat`, `lng`, `accuracy` (metres), `takenAt` (ms since epoch, when the camera took it), `note` |
+
+Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved on (with its current `status`), 422 if you're more than 50 m from the issue (with `distance`), the GPS accuracy is worse than ±100 m, or the photo wasn't taken in the last 15 minutes.
+
+### Ward dashboard (officials and admins)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/dashboard/queue` | Query: `status` (default `open`); admins may add `ward=<number>`, and see every ward without it. Returns `{ ward, counts, issues }`. Issues are ranked by people affected, then severity, then oldest first, and each carries `hoursOpen`. 409 for an official without a ward. |
+
+### Officer access requests
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/api/officer-requests` | user | Your latest request, or `null` |
+| POST | `/api/officer-requests` | resident | `{ wardNumber, designation, department, employeeId?, phone?, note? }`. 201 with the request. 409 if one is already pending or you already have staff access. Limit: 5 a day. |
+| DELETE | `/api/officer-requests` | user | Withdraws your pending request |
+
 ### Admin (admin role only)
 
 | Method | Path | Notes |
 | --- | --- | --- |
+| GET | `/api/admin/officer-requests` | Query: `status=pending\|approved\|rejected` (default `pending`). Pending ones oldest first. Each says whether the account uses a government email. |
+| PATCH | `/api/admin/officer-requests/:id` | `{ decision: "approve", wardNumber?, anyDomain? }` or `{ decision: "reject", note }`. Approving makes the account an official for that ward (the admin can change the ward). A non-government email needs `anyDomain: true`, meaning the admin has checked who they are. A rejection needs a reason, which the applicant sees. 409 if already reviewed. |
 | GET | `/api/admin/officials` | Officials with their wards |
 | POST | `/api/admin/officials` | `{ email, wardNumber }`. Promotes an **existing** account to official for that ward. The email must be `@mcd.nic.in` or `@delhi.gov.in`. Errors: 404 for no such account or ward, 409 for an admin, 422 for a non-government email. |
 | DELETE | `/api/admin/officials/:id` | Turns an official back into a resident. Their past actions stay in issue histories. |
@@ -244,11 +281,12 @@ curl -b cookies.txt http://localhost:3000/api/issues \
   "hasUpvoted": true,
   "photoUrl": "/api/photos/6adc6034fa3d2be399cb7ab7",
   "resolutionPhotoUrl": null,
-  "portal": null,Before an issue is created,
+  "portal": null,
   "createdAt": "2026-10-24T07:37:24.454Z",
   "dueAt": "2026-10-31T07:37:24.454Z",
   "overdue": false,
-  "reopenCount": 0
+  "reopenCount": 0,
+  "failedVerifications": 0
 }
 ```
 
@@ -278,7 +316,7 @@ curl -b cookies.txt http://localhost:3000/api/issues \
 npm test
 ```
 
-67 tests across eight suites. The API suites run against a real MongoDB replica set in memory:
+107 tests across eleven suites. The API suites run against a real MongoDB replica set in memory:
 
 - **geo:** distance accuracy, GeoJSON round trip, point-in-polygon (including holes)
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
@@ -286,13 +324,17 @@ npm test
 - **issues:** create, duplicate 409, AI suggestion stored next to the user's choice, rate limiting, upvote idempotency and withdrawal, bbox / category / status filters, nearby ordering, detail, photo serving, wards, reopening a recently fixed issue (within the category's window, not after it), fix targets and departments in the API
 - **format:** relative times, distances, coordinates, severity labels
 - **categories:** a rule for every category, fix targets, overdue, the after-dark rule for streetlights, per-category reopen windows
-- **proxy:** login redirects with `next`, forged cookies, logged-in users kept off auth pages, residents shown a 403 on `/dashboard`, open-redirect protection
+- **proxy:** login redirects with `next`, forged cookies, logged-in users kept off auth pages, residents shown a 403 on `/dashboard`, `/admin` for admins only, `/officer-access` behind login, open-redirect protection
+- **dashboard:** queue ranking, own ward only (officials can't peek with `?ward=`), admins choosing a ward, status counts; starting work, never setting resolved, other wards and admins refused, an after-photo 80 m away refused (and not stored), rough GPS and old photos refused, a double press only moving the issue once
+- **verification:** 3 confirms verify a fix and 3 rejects send it back to the officer (whichever comes first); failed attempts are counted and kept after a later success; one vote per person; staff and the posting officer refused; 300 m and GPS-accuracy checks; votes only while waiting; five people voting at once settle it exactly once; each viewer sees only their own vote; a verified issue still reopens if the problem comes back; streetlights only after dark (IST)
+- **officerRequests:** asking doesn't grant anything, one pending request at a time, withdrawing, approving (and correcting the ward), vouching for a non-government email, rejecting with a reason the applicant sees, no second decision
 - **officials:** government email check, promoting and demoting, admin-only API, roles read from the database rather than a stale cookie, `/me` re-issuing the cookie after a role change
 
 ---
 
 ## The map
 
+- **`LeafletMap`, not `MapContainer`:** all three maps use our own `components/map/LeafletMap.tsx`. react-leaflet's `MapContainer` removes the map when its effect cleans up, but doesn't create a new one when the effect runs again on the same element. React does that in dev (Strict Mode) and when Next shows a cached page again on Back. The result was "Map container is being reused by another instance" and a blank map.
 - **Client-only:** Leaflet needs `window`, so `HomeMap` loads `MapView` with `next/dynamic` and `ssr: false`. While it loads, the same street-block pattern the page used before is shown, so nothing jumps.
 - **Tiles:** standard OpenStreetMap tiles, desaturated with a CSS filter on the tile pane. The basemap stays quiet, and our pins and status colours carry the meaning.
 - **Ward outlines:**
@@ -362,19 +404,77 @@ Going Back and forward keeps the photo and the pin. The photo preview is a local
 
 ## Officer accounts
 
-Officers are normal accounts with `role: "official"` and a `ward`. There's no public way to become one.
+Officers are normal accounts with `role: "official"` and a `ward`. Nobody becomes one on their own say-so.
 
-- **How someone becomes an officer:** they register like anyone else. Then an admin promotes them, either with `POST /api/admin/officials` or with `npm run set-role -- --email … --role official --ward 78`.
-- **Only government addresses** (`@mcd.nic.in`, `@delhi.gov.in`) can be promoted through the API. The CLI flag `--any-domain` exists for demo accounts.
+- **Asking for access:** a resident opens **"I'm a ward officer"** in the account menu (or the link on the 403 page at `/dashboard`). That's `/officer-access`, a form for ward, designation, department, and optionally employee id, office phone and a note. They can see the request's status there, withdraw it while it's pending, or read why it was turned down.
+- **Reviewing:** admins open **"Officer access requests"** in their menu (`/admin`).
+  - Requests are listed oldest first, with a badge for a government or personal email.
+  - **Approve** lets the admin change the ward. For a personal email, the admin must tick that they've confirmed the person another way.
+  - **Reject** needs a reason.
+  - The **Officers** tab lists every officer, with a two-step **Remove**.
+- **No re-login needed:** the 403 pages reload themselves once the refreshed session shows the new role, so an approved officer just opens the dashboard.
+- **Other ways in:** `POST /api/admin/officials` (government emails only) and `npm run set-role -- --email … --role official --ward 78` (add `--any-domain` for demo accounts).
 - **Demo accounts:** `npm run seed:officials` creates one officer per pilot ward (for example `ward78.officer@pinpoint.test`, Anil Sharma) and `admin@pinpoint.test`, all using `DEMO_PASSWORD`.
 - **Roles are checked in the database.** The session cookie records the role at login and lasts 7 days, so trusting it would let a demoted officer keep access for up to a week. Every staff-only API calls `requireStaff()`, which reads the role fresh.
-- **Stale cookies refresh themselves.** When `/api/auth/me` sees that the stored role differs from the cookie, it re-issues the cookie. The header calls `/me` on every page, so a newly promoted officer gets the dashboard without logging out.
-- **`/dashboard` in the proxy:**
-  - logged-out visitors go to login
-  - residents get a 403 with an explanation page (`/not-allowed`) at the same URL
-  - officials and admins pass through
+- **Stale cookies refresh themselves.** When `/api/auth/me` sees that the stored role differs from the cookie, it re-issues the cookie.
+- **Pages in the proxy:**
+  - `/dashboard` is for officials and admins
+  - `/admin` is for admins only
+  - `/officer-access` needs a login
 
-The dashboard itself is Phase 11.
+  Anyone without the role gets a 403 with an explanation page at the same URL.
+
+---
+
+## Ward dashboard and marking a fix
+
+`/dashboard` is the officer's work queue for their own ward.
+
+- **Tabs:** Open, In progress, Awaiting residents and Resolved, each with a live count.
+- **Ranking:** most people affected first, then severity, then whatever has waited longest. Overdue issues are flagged in brick.
+- **Admins:** they see every ward, or pick one, read-only.
+- **Drawer:** clicking a row opens the photo, severity, people affected, age, due date and coordinates. For an officer, it also offers:
+  - **Start work** (open → in progress), with an optional note for residents. The note appears in the issue's public history.
+  - **Mark as fixed** (open or in progress → awaiting residents).
+- **Marking a fix** is where the anti-gaming rules live:
+  - **Live photo only.** The camera opens inside the page (`getUserMedia`), and there is no gallery button. Phones that can't do that fall back to the camera app (`capture="environment"`). The server also refuses a photo whose capture time is more than 15 minutes old.
+  - **At the spot.** The phone's position is watched while the panel is open, and the panel shows "You're at the issue (6 m away)" or how far off you are. The server checks the distance again against the stored issue location: within **50 m**, with GPS accuracy of **±100 m** or better.
+  - **On the record.** The server stores the photo, the officer's position, accuracy, distance and the **server's** timestamp in `issue.fix`, clears any old votes, and adds a status history entry.
+  - **Residents decide.** The issue moves to **Pending verification**. Officers can't set **Resolved**; only residents' votes can (see below).
+- **Public view:** the issue page shows the after-photo with "Posted by the ward officer 5 minutes ago, taken 6 m from the reported spot" and the officer's note. The officer's identity isn't part of the public API.
+- **Races:** both status changes are conditional updates on the current status. A double tap, or two officers at once, can only move the issue once, and the loser's photo is deleted.
+
+**Honest limits.** A determined officer could fake GPS with a spoofing app, or photograph a photo. The 50 m check, the live camera and the server timestamp make cheating deliberate rather than casual. Residents' votes (Phase 13) and Gemini's before/after comparison (Phase 15) are the real checks.
+
+**Testing on a laptop.** Chrome DevTools → More tools → Sensors can set a location near the issue, and the in-page camera uses the webcam.
+
+---
+
+## Residents verifying a fix
+
+When an officer marks an issue fixed, the issue page shows an **"Is it fixed?"** panel. It has two buttons, **Fixed** and **Not fixed**, and a tally for each side ("1 of 3").
+
+- **First to 3 wins.** `VERIFY_VOTES_NEEDED` (3) "Fixed" votes **verify** the issue: it becomes Resolved, with `resolvedAt` set. If 3 "Not fixed" votes come first, **verification fails**:
+  - the issue goes back to the officer as **In progress**
+  - the after-photo is deleted
+  - the votes reset
+  - `failedVerifications` goes up by one
+
+  The officer then posts a new after-photo, and voting starts again.
+- **Who can vote:** logged-in residents within **300 m** of the issue, with GPS accuracy of ±100 m or better.
+  - The browser asks for location only when someone taps a button, and the server checks the distance.
+  - Officials and admins can't vote. That includes the officer who posted the fix, and the role is read from the database, not the cookie.
+  - The reporter can vote.
+- **One vote per person per fix,** and votes are final.
+- **Streetlights** can only be checked between 6:30 pm and 5:30 am India time (`isAfterDark()` in `lib/categories.ts`), whatever the server's time zone. During the day the panel says to come back tonight.
+- **Race safety:**
+  - A vote is a conditional `$push`, which only succeeds while the issue is waiting and this person hasn't voted.
+  - Settling is a second conditional update that matches only if the third vote exists (`verification.confirms.2`).
+  - However many people tap at once, the issue is decided exactly once.
+- **On record:**
+  - `failedVerifications` shows on the issue page ("Verification failed 1 time"), in the officer's queue and in the drawer. The Phase 16 scorecard will count it.
+  - It's kept separate from `reopenCount`, which counts problems that came back after being resolved.
+- **Privacy:** the API gives vote counts and the viewer's own vote (`myVote`), never who voted.
 
 ---
 
@@ -448,10 +548,8 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 11 is half built. The `/dashboard` page (status tabs, ranked table, issue drawer) is in place and reads `GET /api/dashboard/queue?status=`. What remains is the endpoint itself:
+The full plan for Phases 14–20 is in [`plan.md`](plan.md). Next up is the rest of Phase 14:
 
-- the officer's own ward only
-- ranked by people affected, then severity, then age
-- each issue also carries `hoursOpen`
-
-Until it lands, the dashboard shows "Try again" instead of a queue.
+- the before and after photos side by side on the issue page
+- the distance to the issue shown before voting
+- a "Check fixes near you" list of issues waiting for votes within 300 m

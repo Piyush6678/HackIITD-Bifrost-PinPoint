@@ -1,8 +1,8 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
 import type { LatLngBoundsExpression } from "leaflet";
-import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
+import { TileLayer, ZoomControl } from "react-leaflet";
+import { LeafletMap } from "./LeafletMap";
 import { PILOT_CENTRE } from "@/data/pilotWards";
 import { IssueLayer } from "./IssueLayer";
 import { WardLayer } from "./WardLayer";
@@ -15,7 +15,7 @@ const CITY_BOUNDS: LatLngBoundsExpression = [
 
 export default function MapView() {
   return (
-    <MapContainer
+    <LeafletMap
       center={[PILOT_CENTRE.lat, PILOT_CENTRE.lng]}
       zoom={14}
       minZoom={12}
@@ -33,6 +33,6 @@ export default function MapView() {
       <WardLayer />
       <IssueLayer />
       <ZoomControl position="bottomright" />
-    </MapContainer>
+    </LeafletMap>
   );
 }
