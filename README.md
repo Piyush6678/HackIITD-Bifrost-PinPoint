@@ -191,7 +191,7 @@ curl -b cookies.txt http://localhost:3000/api/issues \
   "hasUpvoted": true,
   "photoUrl": "/api/photos/6adc6034fa3d2be399cb7ab7",
   "resolutionPhotoUrl": null,
-  "portal": null,
+  "portal": null,Before an issue is created,
   "createdAt": "2026-10-24T07:37:24.454Z"
 }
 ```
@@ -200,7 +200,7 @@ curl -b cookies.txt http://localhost:3000/api/issues \
 
 ## How the core works
 
-**Duplicate detection.** Before an issue is created, `Issue.findNearbyDuplicate()` runs a `$near` query with `$maxDistance: 50`. It only considers issues of the same category that are not yet resolved. If it finds one, the API returns `409` with that issue so the client can offer an upvote instead. The query uses the `2dsphere` index, so it stays fast as the collection grows.
+**Duplicate detection.**  `Issue.findNearbyDuplicate()` runs a `$near` query with `$maxDistance: 50`. It only considers issues of the same category that are not yet resolved. If it finds one, the API returns `409` with that issue so the client can offer an upvote instead. The query uses the `2dsphere` index, so it stays fast as the collection grows.
 
 **Upvotes.** Each direction is a single conditional `findOneAndUpdate` (`upvotes: { $ne: user }` with `$push` and `$inc`). Double taps and races therefore can't push `upvoteCount` out of step with the voter list. The reporter counts as the first upvote.
 
