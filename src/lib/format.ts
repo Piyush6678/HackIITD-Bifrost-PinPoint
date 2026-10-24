@@ -37,6 +37,25 @@ export function timeAgo(date: Date | string, now: Date = new Date()) {
   return "just now";
 }
 
+const IST = "Asia/Kolkata";
+const dateTimeFormat = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: IST,
+});
+const dateFormat = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: IST });
+
+export function formatDateTime(date: Date | string) {
+  return dateTimeFormat.format(new Date(date));
+}
+
+export function formatDate(date: Date | string) {
+  return dateFormat.format(new Date(date));
+}
+
 export function formatDistance(metres: number) {
   if (metres < 1000) return `${Math.round(metres)} m`;
   return `${(metres / 1000).toFixed(metres < 10_000 ? 1 : 0)} km`;

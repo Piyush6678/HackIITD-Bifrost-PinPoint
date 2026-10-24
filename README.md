@@ -31,8 +31,8 @@ We are building in phases. This README documents what exists today.
 | 4 | Client API layer, login and register pages | Done |
 | 5 | Base map with ward outlines | Done |
 | **6** | **Issue pins on the map** | **Done** |
-| 7 | Issue page and upvoting | Next |
-| 8 | Report flow: photo and location | Planned |
+| **7** | **Issue page and upvoting** | **Done** |
+| 8 | Report flow: photo and location | Next |
 | 9 | Report flow: details, duplicate check, submit | Planned |
 | 10 | Officer accounts and ward assignment | Planned |
 | 11 | Officer work queue for their ward | Planned |
@@ -364,10 +364,8 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-The product now centres on a closed loop. A citizen reports a problem, and the ward officer fixes it and posts an on-site after-photo. Nearby residents then confirm or reject the fix, and the result goes on the officer's public record.
+Phase 8 starts the report flow at `/report`:
 
-Phase 7 is the issue page that the loop runs through:
-
-- the photo, the metadata, the status timeline and a mini map
-- an upvote button that updates instantly and rolls back if the request fails
-- a share link
+- a camera or file input, compressed in the browser to about 120 KB
+- a location step that starts from the device GPS, with a draggable pin to correct it
+- manual pin placement on the map when location permission is denied

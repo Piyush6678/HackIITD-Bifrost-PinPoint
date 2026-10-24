@@ -42,8 +42,8 @@ export function LoginForm() {
     }
   }
 
-  return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+  return
+   (     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <div>
         <h2 className="font-serif text-2xl font-bold text-ink">Log in</h2>
         {next !== "/" && (
