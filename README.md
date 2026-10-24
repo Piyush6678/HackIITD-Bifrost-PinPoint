@@ -35,7 +35,7 @@ We are building in phases. This README documents what exists today.
 | **8** | **Report flow: photo and location** | **Done** |
 | 9 | Report flow: details, duplicate check, submit | Done |
 | **10** | **Officer accounts and ward assignment** | **Done** |
-| 11 | Officer work queue for their ward | Next |
+| 11 | Officer work queue for their ward | Dashboard UI done, queue API next |
 | 12 | Officer marks a fix with an on-site, GPS-checked after-photo | Planned |
 | 13 | Verification API: 3 nearby residents confirm or reject | Planned |
 | 14 | Verification screen: before/after and vote | Planned |
@@ -448,7 +448,10 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 11 gives each officer their ward's work queue:
+Phase 11 is half built. The `/dashboard` page (status tabs, ranked table, issue drawer) is in place and reads `GET /api/dashboard/queue?status=`. What remains is the endpoint itself:
 
-- `GET /api/dashboard/queue`: the officer's own ward only, ranked by people affected, then severity, then age, with an overdue flag
-- `/dashboard`: a table of the queue with status tabs, and a drawer with the photo and actions
+- the officer's own ward only
+- ranked by people affected, then severity, then age
+- each issue also carries `hoursOpen`
+
+Until it lands, the dashboard shows "Try again" instead of a queue.

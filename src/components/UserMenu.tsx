@@ -82,6 +82,16 @@ export function UserMenu() {
               {user.ward ? ` · Ward ${user.ward.number}` : ""}
             </p>
           </div>
+          {user.role !== "citizen" && (
+            <Link
+              href="/dashboard"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block w-full px-4 py-2.5 text-left text-sm font-bold text-ink transition-colors hover:bg-mist"
+            >
+              Ward dashboard
+            </Link>
+          )}
           <button
             type="button"
             role="menuitem"

@@ -66,3 +66,10 @@ export function formatCoords({ lat, lng }: { lat: number; lng: number }, digits 
   const ew = lng >= 0 ? "E" : "W";
   return `${Math.abs(lat).toFixed(digits)}° ${ns}, ${Math.abs(lng).toFixed(digits)}° ${ew}`;
 }
+
+// Compact age for tables: hours up to two days, then days.
+export function formatHours(hours: number) {
+  if (hours < 1) return "<1 h";
+  if (hours < 48) return `${Math.round(hours)} h`;
+  return `${Math.round(hours / 24)} d`;
+}
