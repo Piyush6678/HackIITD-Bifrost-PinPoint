@@ -31,6 +31,18 @@ export interface IIssue {
     // Gemini's before/after comparison, shown to residents as a second opinion.
     ai?: { samePlace: boolean; looksFixed: boolean; confidence: "low" | "medium" | "high"; summary: string; at: Date };
   };
+  // Fixes residents rejected. The photo stays so the failure can be shown as evidence.
+  fixAttempts: {
+    by: Types.ObjectId;
+    at: Date;
+    photo: Types.ObjectId;
+    accuracy: number;
+    distance: number;
+    note?: string;
+    confirms: number;
+    rejects: number;
+    failedAt: Date;
+  }[];
   upvotes: Types.ObjectId[];
   upvoteCount: number;
   // Both kept so we can measure how often people override the model.
@@ -104,6 +116,20 @@ const issueSchema = new Schema<IIssue, IssueModel>(
         at: Date,
       },
     },
+    fixAttempts: [
+      {
+        _id: false,
+        by: { type: Schema.Types.ObjectId, ref: "User" },
+        at: Date,
+        photo: { type: Schema.Types.ObjectId, ref: "Photo" },
+        accuracy: Number,
+        distance: Number,
+        note: String,
+        confirms: Number,
+        rejects: Number,
+        failedAt: Date,
+      },
+    ],
     upvotes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     upvoteCount: { type: Number, default: 0 },
     aiSuggestion: tagging,

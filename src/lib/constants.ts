@@ -58,3 +58,16 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export const SESSION_COOKIE = "pp_session";
 export const SESSION_TTL_DAYS = 7;
+
+export const NOTIFICATION_KINDS = ["verify_request", "verified", "failed", "in_progress", "access_decided"] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+// A popular issue can have thousands of upvoters; only this many get a ping per event.
+export const NOTIFY_MAX_RECIPIENTS = 100;
+export const NOTIFICATION_TTL_DAYS = 60;
+export const NOTIFICATIONS_PAGE_SIZE = 30;
+
+// An issue can be escalated once any one of these is true (see lib/escalation.ts).
+export const ESCALATE_OVERDUE_DAYS = 7;
+export const ESCALATE_FAILED_CHECKS = 2;
+export const ESCALATE_REOPENS = 2;

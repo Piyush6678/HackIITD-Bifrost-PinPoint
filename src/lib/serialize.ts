@@ -2,6 +2,7 @@ import type { Types } from "mongoose";
 import type { IIssue } from "@/models/Issue";
 import { CATEGORY_RULES, isOverdue, slaDueAt } from "./categories";
 import { VERIFY_VOTES_NEEDED } from "./constants";
+import { escalationState } from "./escalation";
 import { fromGeoPoint } from "./geo";
 
 type WardRef = Types.ObjectId | { _id: Types.ObjectId; name: string; number: number } | undefined;
@@ -76,6 +77,17 @@ export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
             : null,
         }
       : null,
+    // Fixes residents turned down. The photos stay as evidence; the officer isn't named here.
+    failedAttempts: (issue.fixAttempts ?? []).map((a) => ({
+      photoUrl: photoUrl(a.photo),
+      at: a.at,
+      failedAt: a.failedAt,
+      distance: a.distance,
+      note: a.note ?? null,
+      confirms: a.confirms,
+      rejects: a.rejects,
+    })),
+    escalation: escalationState(issue),
     verification: serializeVerification(issue),
     // Only the viewer's own vote. Who else voted is never public.
     myVote: myVote(issue, viewerId),

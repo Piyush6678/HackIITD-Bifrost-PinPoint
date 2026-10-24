@@ -1,9 +1,9 @@
 # PinPoint: features built so far
 
-What works today (Phases 0–16), who it's for, and how to use it. The README has the API details and setup.
+What works today (Phases 0–18), who it's for, and how to use it. The README has the API details and setup.
 
 **The loop we're building:** a resident reports a problem → it lands in the ward officer's queue → the officer fixes it and posts a live, GPS-checked after-photo → residents nearby confirm or reject → public scorecards.
-Everything up to and including the public scorecards is built. Alerts and escalation come next (see [`plan.md`](plan.md)).
+Everything up to and including escalation is built. TinyFish data imports and the demo polish come next (see [`plan.md`](plan.md)).
 
 ---
 
@@ -93,7 +93,7 @@ Everything up to and including the public scorecards is built. Alerts and escala
 - **Tallies:** both sides are always visible, for example "Say fixed 1 of 3 · Say not fixed 0 of 3".
 - **First side to 3 decides:**
   - **3 "Fixed":** the issue is **verified** (Resolved).
-  - **3 "Not fixed":** verification fails. The issue goes back to the officer (In progress), the after-photo is removed, and the issue shows "Verification failed 1 time". It also appears on the officer's queue and drawer.
+  - **3 "Not fixed":** verification fails. The issue goes back to the officer (In progress), the after-photo is kept on the issue as a rejected fix, and the issue shows "Verification failed 1 time". It also appears on the officer's queue and drawer.
 - **Who can vote:** logged-in residents within 300 m.
   - Location is asked for only when you tap a button.
   - Officials and admins can't vote.
@@ -108,6 +108,26 @@ Everything up to and including the public scorecards is built. Alerts and escala
 - **Photo check on fixes:** when an officer posts an after-photo, Gemini compares it with the original: is it the same spot, and does the problem look fixed? Residents see this in the "Is it fixed?" panel as a second opinion; their votes still decide.
 - **Never in the way:** without an API key, or if Gemini is slow or unsure, the app works exactly as it does without AI. Officers never wait for it.
 - **Measured:** what Gemini suggested is stored next to what the resident chose, and `npm run ai:accuracy` shows how often people kept it.
+
+### Alerts (the bell)
+- **A bell in the header** shows how many things are new. Opening it lists the latest and marks them read; each one links to its issue.
+- **You hear about:**
+  - **A fix waiting for your check,** if you reported the issue or said you were affected.
+  - **The result:** verified, or turned down.
+  - **Work starting,** with the officer's note, if you reported it.
+  - **An officer-access decision,** if you applied.
+  - **Residents' rejection of a fix,** if you are the ward's officer.
+- **Live:** new alerts appear within seconds. If the live connection isn't available it checks every minute.
+- **On the issue page,** the "Is it fixed?" panel is highlighted when you were asked to check it.
+
+### Escalation
+- **When:** an issue unresolved for more than 7 days past its due date, with 2 failed checks, or reopened twice.
+- **On the issue page:** an "Escalate" section with the reasons and three actions.
+  - **Evidence pack:** a printable record (save it as PDF from the browser) with the photos, rejected fixes, timeline and numbers.
+  - **Councillor petition:** a draft addressed to the ward's councillor.
+  - **RTI application:** a draft under Section 6(1) with the questions to ask and the fee note. Each draft has "Copy text".
+- **Fixes residents turned down stay on the issue,** with their photos, as evidence.
+- **Officers see it coming:** the dashboard marks issues "At risk of escalation".
 
 ### Public scorecards (`/scorecard`)
 - **Every ward side by side:** share of fixes residents accepted, median time to fix, resolved out of reported, and overdue now, with city totals. Sort by fixes accepted, fastest fixes or most overdue.
@@ -174,7 +194,5 @@ Everything up to and including the public scorecards is built. Alerts and escala
 ## Coming next
 | Phase | Feature |
 | --- | --- |
-| 17 | Live alerts asking reporters and upvoters to verify fixes |
-| 18 | Escalation: evidence pack, councillor petition, RTI draft |
-| 19 | TinyFish: file to MCD-311 / Swachhata and sync status |
+| 19 | TinyFish: official ward boundaries, road ownership, ward contacts and live notices |
 | 20 | Demo data, polish, demo script |

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Logo } from "./Logo";
 import { BottomNav, TopNav } from "./NavLinks";
+import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-40 bg-pine">
+      <header className="sticky top-0 z-40 bg-pine print:hidden">
         <div className="flex h-14 items-center justify-between px-4 md:h-16 md:px-6">
           <Link href="/" aria-label="PinPoint home" className="rounded-md">
             <Logo size={26} />
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Pilot · Karol Bagh zone, Delhi
             </span>
             <TopNav />
+            <NotificationBell />
             {/* UserMenu reads the pathname too (for the login ?next= link). */}
             <Suspense fallback={<span className="size-8 rounded-full bg-white/10" aria-hidden />}>
               <UserMenu />
@@ -34,7 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Bottom padding keeps content clear of the mobile tab bar. */}
-      <main id="main" className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main id="main" className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:pb-0">
         {children}
       </main>
 

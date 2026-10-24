@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { hasVerifyRequest, useNotifications } from "@/hooks/useNotifications";
 import { api, ApiError } from "@/lib/api";
 import { CATEGORY_LABELS, formatCoords, formatDate, timeAgo } from "@/lib/format";
 import type { serializeIssueDetail } from "@/lib/serialize";
@@ -15,6 +16,8 @@ import { Skeleton } from "../ui/Skeleton";
 import { BeforeAfter } from "./BeforeAfter";
 import { CategoryIcon } from "./CategoryIcon";
 import { CopyLinkButton } from "./CopyLinkButton";
+import { EscalatePanel } from "./EscalatePanel";
+import { FailedAttempts } from "./FailedAttempts";
 import { SeverityMeter } from "./SeverityMeter";
 import { StatusPill } from "./StatusPill";
 import { StatusTimeline } from "./StatusTimeline";
@@ -47,6 +50,7 @@ export function IssueView() {
   const [attempt, setAttempt] = useState(0);
   // Set when this visitor's vote was the one that decided the fix.
   const [outcome, setOutcome] = useState<Outcome>(null);
+  const notifications = useNotifications();
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +149,7 @@ export function IssueView() {
             <div className="mt-5">
               <VerifyPanel
                 issue={issue}
+                highlighted={hasVerifyRequest(notifications.items, issue.id)}
                 onVoted={(next, result) => {
                   setState({ status: "ready", issue: next });
                   setOutcome(result);
@@ -160,6 +165,12 @@ export function IssueView() {
                   ? "A fix was reported for this before, but the problem came back."
                   : `Fixes were reported ${issue.reopenCount} times before, but the problem came back.`}
               </Alert>
+            </div>
+          )}
+
+          {issue.escalation.eligible && (
+            <div className="mt-5">
+              <EscalatePanel issueId={issue.id} escalation={issue.escalation} />
             </div>
           )}
 
@@ -187,6 +198,12 @@ export function IssueView() {
                 />
               </div>
             )
+          )}
+
+          {issue.failedAttempts.length > 0 && (
+            <div className="mt-5">
+              <FailedAttempts attempts={issue.failedAttempts} title={issue.title} />
+            </div>
           )}
 
           {issue.description && (

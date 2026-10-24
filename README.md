@@ -41,9 +41,9 @@ We are building in phases. This README documents what exists today.
 | **14** | **Verification screen: before/after, distance check, "Check fixes near you"** | **Done** |
 | **15** | **Gemini: tagging reports and checking before/after photos** | **Done** |
 | 16 | Public officer and ward scorecards | Done |
-| 17 | Alerts: reporters and upvoters asked to verify fixes | Next |
-| 18 | Escalation: evidence pack, councillor petition, RTI draft | Planned |
-| 19 | TinyFish: official ward data, road ownership, contacts, notices | Planned |
+| **17** | **Alerts: bell, notifications, live stream with polling fallback** | **Done** |
+| **18** | **Escalation: evidence pack, councillor petition, RTI draft** | **Done** |
+| 19 | TinyFish: official ward data, road ownership, contacts, notices | Next |
 | 20 | Demo data, polish, demo script | Planned |
 
 ---
@@ -275,6 +275,10 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 | GET | `/api/photos/:id` | Raw image, served with `Cache-Control: immutable` |
 | GET | `/api/wards` | Pilot wards. Add `?boundary=true` to include the GeoJSON polygons. |
 | POST | `/api/ai/tag` | Logged in, 20 an hour. Multipart `photo`. Returns `{ suggestion: { looksLikeCivicIssue, category, severity, title } \| null }`. `null` when AI is off or the call fails. |
+| GET | `/api/notifications` | Logged in. Query: `unread=true` for unread only. Returns the latest 30 as `{ notifications, unreadCount }`. Always the caller's own. |
+| POST | `/api/notifications/read` | Logged in. `{ all: true }` or `{ ids: [...] }`. Only touches the caller's own notifications. Returns `{ updated, unreadCount }`. |
+| GET | `/api/stream` | Logged in. Server-Sent Events (`text/event-stream`): a `notification` event for each new notification, a `: ping` comment every 25 s, and `unavailable` if the change stream can't run. |
+| GET | `/api/issues/:id/escalation` | Public. Ready-to-send `petition` and `rti` drafts (`{ to, subject, body }`), plus the RTI fee and filing portal. 409 unless the issue can be escalated. |
 | GET | `/api/scorecard` | Public. Query: `sort=acceptance\|speed\|overdue`. Every pilot ward's metrics plus city totals. |
 | GET | `/api/scorecard/:ward` | Public. One ward by number: its metrics, its officers (name and designation only), the last 10 verified fixes and every overdue issue. 404 outside the pilot. |
 
@@ -456,7 +460,7 @@ Officers are normal accounts with `role: "official"` and a `ward`. Nobody become
   - **On the record.** The server stores the photo, the officer's position, accuracy, distance and the **server's** timestamp in `issue.fix`, clears any old votes, and adds a status history entry.
   - **Residents decide.** The issue moves to **Pending verification**. Officers can't set **Resolved**; only residents' votes can (see below).
 - **Public view:** the issue page shows the after-photo with "Posted by the ward officer 5 minutes ago, taken 6 m from the reported spot" and the officer's note. The officer's identity isn't part of the public API.
-- **Races:** both status changes are conditional updates on the current status. A double tap, or two officers at once, can only move the issue once, and the loser's photo is deleted.
+- **Races:** both status changes are conditional updates on the current status. A double tap, or two officers at once, can only move the issue once, and the loser's photo is deleted. (Only a photo that never became a fix is deleted; a fix residents turned down is kept.)
 
 **Honest limits.** A determined officer could fake GPS with a spoofing app, or photograph a photo. The 50 m check, the live camera and the server timestamp make cheating deliberate rather than casual. Residents' votes (Phase 13) and Gemini's before/after comparison (Phase 15) are the real checks.
 
@@ -470,7 +474,7 @@ When an officer marks an issue fixed, the issue page shows an **"Is it fixed?"**
 
 - **First to 3 wins.** `VERIFY_VOTES_NEEDED` (3) "Fixed" votes **verify** the issue: it becomes Resolved, with `resolvedAt` set. If 3 "Not fixed" votes come first, **verification fails**:
   - the issue goes back to the officer as **In progress**
-  - the after-photo is deleted
+  - the after-photo and the fix details move to `fixAttempts`, so the failed fix stays on record as evidence
   - the votes reset
   - `failedVerifications` goes up by one
 
@@ -586,10 +590,57 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ---
 
+## Alerts (Phase 17)
+
+The right people hear about a fix waiting for them, so verification actually happens.
+
+- **`Notification` model:** `{ user, issue?, kind, message, note?, read, createdAt }`. Indexed on `{ user, read, createdAt }`, with a TTL index that deletes them after 60 days. `kind` is `verify_request`, `verified`, `failed`, `in_progress` or `access_decided`.
+- **Who gets what** (created in the same route as the change, after it succeeds, in `lib/notifications.ts`):
+
+  | Event | Who | Message |
+  | --- | --- | --- |
+  | Officer posts a fix | Reporter and upvoters (first 100) | "Is it fixed? Check the officer's photo" |
+  | Residents verify | Reporter and upvoters (first 100) | "Fixed and verified by residents" |
+  | Verification fails | Reporter and the ward's officers | "Residents say it isn't fixed yet" |
+  | Officer starts work | Reporter | "Work has started", plus the officer's note |
+  | Officer request decided | The applicant | "Approved: ..." or "Not approved: reason" |
+
+  Saving a notification never fails the request that caused it: errors are logged and swallowed.
+- **Bell in the header** (`NotificationBell`): shows the unread count. Opening it lists the latest 30 and marks everything read, but keeps the new ones highlighted while it's open. Each item links to its issue.
+- **Live delivery:** `GET /api/stream` watches the notifications collection with a MongoDB change stream, filtered to the session's user id on the server. It sends a heartbeat comment every 25 s and closes the change stream when the request aborts.
+  - **Needs a replica set.** Atlas and the test database both are. On a standalone `mongod` the stream reports `unavailable` and the client falls back to polling.
+  - **Polling fallback:** `useNotifications` polls `GET /api/notifications` every 60 s whenever the stream isn't up, and tries to reconnect on each poll. Hosts that cut long requests (serverless) therefore still work, just up to a minute slower.
+- **Issue page:** if you were asked to check a fix (a `verify_request` for that issue in your latest 30), the "Is it fixed?" panel is highlighted.
+- **Privacy:** a notification is only ever visible to its owner. Every query includes the user id from the session.
+- **Not built (optional in the plan):** issue status events on the stream, so the map and dashboard refresh without reloading.
+
+---
+
+## Escalation (Phase 18)
+
+When the ward doesn't deliver, residents get evidence-backed ways to push further.
+
+- **When an issue can be escalated** (`escalationState()` in `lib/escalation.ts`, thresholds in `constants.ts`). Any one of these, on an unresolved issue:
+  - more than 7 days past its due date (`ESCALATE_OVERDUE_DAYS`)
+  - 2 or more failed checks (`ESCALATE_FAILED_CHECKS`)
+  - reopened 2 or more times (`ESCALATE_REOPENS`)
+- **Failed fixes are kept.** Phase 13 deleted a rejected after-photo. Now `settle` in the confirm route moves it, with when it was posted, the distance, the officer's note and the vote counts, into `Issue.fixAttempts`. The issue page lists these under "Fixes residents turned down", and the evidence pack includes them. The officer is not named there.
+- **Evidence pack** (`/issues/:id/evidence`): a plain page for printing or "Save as PDF" from the browser (no PDF code). It has the summary, why it qualifies, the before photo, every rejected fix and the latest fix with its outcome, the timeline, days since reported and overdue, residents affected, the generation date and the live link. It names no reporter or voter. The site header and bottom bar are hidden when printing.
+- **Drafts** (`GET /api/issues/:id/escalation`, built by `buildPetition` and `buildRti`): counts and issue facts only, with the applicant's name and address left as `[...]` for the resident to fill in. Each has a "Copy text" button on the issue page.
+  - **Councillor petition,** addressed to the ward's councillor.
+  - **RTI application** under Section 6(1) of the Right to Information Act, 2005, addressed to the PIO. It asks for the date the complaint was received, the responsible officer, the action taken with dates, the reasons for delay and certified copies of the records. The fee is Rs. 10, as the Delhi government's RTI portal states.
+  - **Where to file:** departments starting with "MCD" point to MCD's own page, <https://mcdonline.nic.in/portal/rti>. Delhi Jal Board and PWD point to <https://rtionline.delhi.gov.in/>. **Check both before launch.** Portals move, and MCD's exact filing steps were not confirmed.
+- **Addressees come from `Ward.contacts`:** an entry whose `department` contains "councillor" is used for the petition, and one containing "PIO" or "public information" for the RTI. **Those lists are empty today**, so the drafts fall back to "The Councillor, Ward No. N" and "The Public Information Officer" for the department. Names are not made up; fill them in from official MCD pages (Phase 19 imports them).
+- **On the issue page:** an "Escalate" section appears only when the issue is eligible, with the three actions.
+- **On the ward dashboard:** a queue row and its drawer show "At risk of escalation" (overdue 4+ days, or one failed check, or one reopen) and, once past the thresholds, "Residents can escalate this".
+
+---
+
 ## Roadmap (next phase)
 
-The full plan for Phases 17–20 is in [`plan.md`](plan.md). Next up is Phase 17, alerts:
+The full plan is in [`plan.md`](plan.md). Next up is Phase 19, TinyFish as a source of official public information, each item reviewed by a person before use:
 
-- `GET /api/stream` (server-sent events from a MongoDB change stream)
-- an in-app prompt for reporters and upvoters when a fix is waiting for their vote
-- live map updates, with polling as a fallback
+- real MCD ward boundaries in place of the simplified rectangles
+- whether a road is MCD's or PWD's, to fill in "Handled by"
+- ward contacts (councillor, PIO) for the escalation drafts
+- live official notices from monitors

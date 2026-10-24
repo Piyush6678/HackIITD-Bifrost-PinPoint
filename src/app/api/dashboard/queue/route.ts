@@ -2,6 +2,7 @@ import type { QueryFilter } from "mongoose";
 import { STATUSES, type Status } from "@/lib/constants";
 import { HttpError, json, route } from "@/lib/http";
 import { wardByNumber } from "@/lib/officerRequests";
+import { escalationRisk } from "@/lib/escalation";
 import { requireStaff } from "@/lib/officials";
 import { serializeIssue, serializeVerification } from "@/lib/serialize";
 import { queueSchema, searchParams } from "@/lib/validators";
@@ -44,6 +45,7 @@ export const GET = route(async (req) => {
     issues: issues.map((issue) => ({
       ...serializeIssue(issue),
       verification: serializeVerification(issue),
+      escalationRisk: escalationRisk(issue),
       // Resolved issues stop the clock at the fix.
       hoursOpen: ((issue.resolvedAt?.getTime() ?? now) - issue.createdAt.getTime()) / HOUR_MS,
     })),

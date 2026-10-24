@@ -64,6 +64,11 @@ export function QueueTable({ issues, selectedId, onSelect }: Props) {
                   {issue.title}
                 </button>
                 {issue.overdue && <span className="mt-0.5 block text-[0.6875rem] font-bold text-brick">Overdue</span>}
+                {issue.escalationRisk && (
+                  <span className="mt-0.5 block text-[0.6875rem] font-bold text-brick">
+                    {issue.escalationRisk === "eligible" ? "Residents can escalate this" : "At risk of escalation"}
+                  </span>
+                )}
                 {issue.failedVerifications > 0 && (
                   <span className="mt-0.5 block text-[0.6875rem] font-bold text-brick">
                     Verification failed {issue.failedVerifications}×

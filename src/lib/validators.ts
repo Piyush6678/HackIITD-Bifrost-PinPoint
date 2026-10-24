@@ -167,3 +167,20 @@ export const voteSchema = z.object({
 export const scorecardSchema = z.object({
   sort: z.enum(["acceptance", "speed", "overdue"]).default("acceptance"),
 });
+
+export const listNotificationsSchema = z.object({
+  unread: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+});
+
+export const readNotificationsSchema = z.union([
+  z.object({ all: z.literal(true) }),
+  z.object({
+    ids: z
+      .array(z.string().refine(isValidObjectId, "Invalid notification id"))
+      .min(1, "Pick at least one notification")
+      .max(100),
+  }),
+]);

@@ -20,12 +20,14 @@ export type Outcome = "verified" | "failed" | null;
 
 type Props = {
   issue: IssueDetail;
+  // Set when this person was pinged to check this fix.
+  highlighted?: boolean;
   onVoted: (issue: IssueDetail, outcome: Outcome) => void;
 };
 
 // Shown while an officer's fix waits for residents. Whichever side reaches
 // `needed` first decides it, so both tallies are always on screen.
-export function VerifyPanel({ issue, onVoted }: Props) {
+export function VerifyPanel({ issue, highlighted = false, onVoted }: Props) {
   const session = useSession();
   const pathname = usePathname();
   const [busy, setBusy] = useState<Vote | null>(null);
@@ -143,7 +145,12 @@ export function VerifyPanel({ issue, onVoted }: Props) {
   }
 
   return (
-    <div className="rounded-card border border-status-pending/40 bg-white p-4 shadow-card">
+    <div
+      className={`rounded-card border bg-white p-4 shadow-card ${
+        highlighted ? "border-status-pending ring-2 ring-status-pending/30" : "border-status-pending/40"
+      }`}
+    >
+      {highlighted && <p className="mb-2 text-xs font-bold text-status-pending">You were asked to check this fix</p>}
       <p className="eyebrow text-status-pending">Is it fixed?</p>
       <h2 className="mt-1 font-serif text-lg font-bold leading-snug text-ink">The ward officer says this is fixed</h2>
       <p className="mt-1.5 text-sm text-ink-soft">{issue.verifyHint}</p>

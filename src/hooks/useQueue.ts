@@ -8,6 +8,7 @@ import type { PublicIssue } from "@/lib/serialize";
 export type QueueIssue = PublicIssue & {
   hoursOpen: number;
   verification: { confirms: number; rejects: number; needed: number };
+  escalationRisk: "eligible" | "at_risk" | null;
 };
 
 export type Queue = {

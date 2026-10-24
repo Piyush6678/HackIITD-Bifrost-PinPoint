@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { QueueIssue } from "@/hooks/useQueue";
 import { api, ApiError } from "@/lib/api";
+import { ESCALATE_FAILED_CHECKS, ESCALATE_OVERDUE_DAYS, ESCALATE_REOPENS } from "@/lib/constants";
 import { CATEGORY_LABELS, formatCoords, formatDate, formatHours } from "@/lib/format";
 import { CategoryIcon } from "../issue/CategoryIcon";
 import { SeverityMeter } from "../issue/SeverityMeter";
@@ -155,6 +156,19 @@ function Details({ issue }: { issue: QueueIssue }) {
       )}
 
       <SeverityMeter value={issue.severity} />
+
+      {issue.escalationRisk && (
+        <div className="rounded-card border border-brick/30 bg-brick/5 px-4 py-3">
+          <p className="eyebrow text-brick">
+            {issue.escalationRisk === "eligible" ? "Residents can escalate this" : "At risk of escalation"}
+          </p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Residents can send an evidence pack, a petition to the councillor and an RTI application once an issue is
+            more than {ESCALATE_OVERDUE_DAYS} days overdue, or has failed {ESCALATE_FAILED_CHECKS} checks or come back{" "}
+            {ESCALATE_REOPENS} times.
+          </p>
+        </div>
+      )}
 
       {issue.status === "pending_verification" && (
         <div className="rounded-card border border-status-pending/30 bg-status-pending/5 px-4 py-3">

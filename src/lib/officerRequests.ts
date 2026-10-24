@@ -4,6 +4,7 @@ import { OfficerRequest } from "@/models/OfficerRequest";
 import { Ward } from "@/models/Ward";
 import { isOfficialEmail } from "./constants";
 import { HttpError } from "./http";
+import { notifyAccessDecided } from "./notifications";
 import { makeOfficial } from "./officials";
 
 type Populated = Omit<IOfficerRequest, "user" | "ward"> & {
@@ -79,6 +80,12 @@ export async function reviewRequest(id: string, adminId: Types.ObjectId, review:
     }
   }
 
+  if (claimed.user) {
+    await notifyAccessDecided(claimed.user._id, review.decision === "approve", {
+      ward: claimed.ward?.number,
+      reason: review.note,
+    });
+  }
   return serializeRequest(claimed);
 }
 
