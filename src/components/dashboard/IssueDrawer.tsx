@@ -156,6 +156,18 @@ function Details({ issue }: { issue: QueueIssue }) {
 
       <SeverityMeter value={issue.severity} />
 
+      {issue.status === "pending_verification" && (
+        <div className="rounded-card border border-status-pending/30 bg-status-pending/5 px-4 py-3">
+          <p className="eyebrow text-status-pending">Residents so far</p>
+          <p className="mt-1.5 font-mono text-sm text-ink">
+            {issue.verification.confirms} of {issue.verification.needed} say fixed
+          </p>
+          <p className="font-mono text-sm text-ink">
+            {issue.verification.rejects} of {issue.verification.needed} say not fixed
+          </p>
+        </div>
+      )}
+
       {issue.description && (
         <p className="whitespace-pre-line text-sm leading-relaxed text-ink-soft">{issue.description}</p>
       )}

@@ -81,6 +81,7 @@ export const nearbySchema = z.object({
   lng,
   radius: z.coerce.number().min(10).max(NEARBY_MAX_RADIUS_M).default(250),
   category: z.enum(CATEGORIES).optional(),
+  status: csv(STATUSES),
   includeResolved: z
     .enum(["true", "false"])
     .default("false")

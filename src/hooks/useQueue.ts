@@ -5,7 +5,10 @@ import { api, ApiError } from "@/lib/api";
 import type { Status } from "@/lib/constants";
 import type { PublicIssue } from "@/lib/serialize";
 
-export type QueueIssue = PublicIssue & { hoursOpen: number };
+export type QueueIssue = PublicIssue & {
+  hoursOpen: number;
+  verification: { confirms: number; rejects: number; needed: number };
+};
 
 export type Queue = {
   ward: { id: string; number: number; name: string } | null;

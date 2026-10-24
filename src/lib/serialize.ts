@@ -62,14 +62,19 @@ export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
     fix: issue.fix?.at
       ? { at: issue.fix.at, distance: issue.fix.distance, accuracy: issue.fix.accuracy, note: issue.fix.note ?? null }
       : null,
-    verification: {
-      confirms: issue.verification?.confirms.length ?? 0,
-      rejects: issue.verification?.rejects.length ?? 0,
-      needed: VERIFY_VOTES_NEEDED,
-    },
+    verification: serializeVerification(issue),
     // Only the viewer's own vote. Who else voted is never public.
     myVote: myVote(issue, viewerId),
     statusHistory: issue.statusHistory.map(({ status, at, note }) => ({ status, at, note: note ?? null })),
+  };
+}
+
+// Tallies only. Who voted is never public.
+export function serializeVerification(issue: Pick<IssueDoc, "verification">) {
+  return {
+    confirms: issue.verification?.confirms.length ?? 0,
+    rejects: issue.verification?.rejects.length ?? 0,
+    needed: VERIFY_VOTES_NEEDED,
   };
 }
 

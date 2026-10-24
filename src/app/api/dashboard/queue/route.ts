@@ -3,7 +3,7 @@ import { STATUSES, type Status } from "@/lib/constants";
 import { HttpError, json, route } from "@/lib/http";
 import { wardByNumber } from "@/lib/officerRequests";
 import { requireStaff } from "@/lib/officials";
-import { serializeIssue } from "@/lib/serialize";
+import { serializeIssue, serializeVerification } from "@/lib/serialize";
 import { queueSchema, searchParams } from "@/lib/validators";
 import { Issue, type IIssue } from "@/models/Issue";
 import { Ward } from "@/models/Ward";
@@ -29,7 +29,7 @@ export const GET = route(async (req) => {
 
   const [issues, counts] = await Promise.all([
     Issue.find({ ...scope, status: q.status })
-      .select("-verification -statusHistory -aiSuggestion -userChoice -upvotes")
+      .select("-statusHistory -aiSuggestion -userChoice -upvotes")
       .sort({ upvoteCount: -1, severity: -1, createdAt: 1 })
       .limit(200)
       .populate("ward", "name number")
@@ -43,6 +43,7 @@ export const GET = route(async (req) => {
     counts: Object.fromEntries(STATUSES.map((s) => [s, counts.find((c) => c._id === s)?.n ?? 0])),
     issues: issues.map((issue) => ({
       ...serializeIssue(issue),
+      verification: serializeVerification(issue),
       // Resolved issues stop the clock at the fix.
       hoursOpen: ((issue.resolvedAt?.getTime() ?? now) - issue.createdAt.getTime()) / HOUR_MS,
     })),
