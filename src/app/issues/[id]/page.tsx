@@ -1,9 +1,20 @@
 import type { Metadata } from "next";
-import { IssueView } from "@/components/issue/IssueView";
+import { Suspense } from "react";
+import { IssueSkeleton, IssueView } from "@/components/issue/IssueView";
 
 export const metadata: Metadata = { title: "Issue" };
 
-export default async function IssuePage(props: PageProps<"/issues/[id]">) {
-  const { id } = await props.params;
+// The id is only known at request time, so reading it has to sit inside Suspense
+// for the rest of the page shell to prerender.
+export default function IssuePage({ params }: PageProps<"/issues/[id]">) {
+  return (
+    <Suspense fallback={<IssueSkeleton />}>
+      <IssueById params={params} />
+    </Suspense>
+  );
+}
+
+async function IssueById({ params }: { params: PageProps<"/issues/[id]">["params"] }) {
+  const { id } = await params;
   return <IssueView id={id} />;
 }

@@ -191,7 +191,7 @@ function Meta({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function IssueSkeleton() {
+export function IssueSkeleton() {
   return (
     <Shell>
       <div role="status" aria-label="Loading issue">

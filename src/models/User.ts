@@ -1,4 +1,6 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
+// Registers the Ward model, so populate("ward") works even before anything else imports it.
+import "./Ward";
 import { ROLES, type Role } from "@/lib/constants";
 
 export interface IUser {

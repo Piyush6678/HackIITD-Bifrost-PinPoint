@@ -2,11 +2,10 @@
 
 import type { Feature, FeatureCollection, Polygon } from "geojson";
 import type { GeoJSON as LeafletGeoJSON, Path, PathOptions } from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { GeoJSON, useMap, useMapEvent } from "react-leaflet";
-import { api } from "@/lib/api";
+import { useWards } from "@/hooks/useWards";
 
-type Ward = { id: string; number: number; name: string; boundary: Polygon };
 type WardProps = { number: number; name: string };
 
 const BASE: PathOptions = {
@@ -23,21 +22,12 @@ const HOVER: PathOptions = { weight: 2.5, opacity: 1, dashArray: "", fillOpacity
 // Below this zoom the wards are too small on screen for full names, so labels show the number only.
 const NAMES_FROM_ZOOM = 14;
 
-export function WardLayer() {
+// `fit` frames the whole pilot area on load. Maps centred on something else
+// (like the report pin) turn it off.
+export function WardLayer({ fit = true }: { fit?: boolean }) {
   const map = useMap();
   const layer = useRef<LeafletGeoJSON>(null);
-  const [wards, setWards] = useState<Ward[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Outlines are context, not content: if this fails the map still works without them.
-    api<{ wards: Ward[] }>("/api/wards?boundary=true")
-      .then(({ wards }) => !cancelled && setWards(wards))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const wards = useWards();
 
   const data = useMemo<FeatureCollection<Polygon, WardProps>>(
     () => ({
@@ -52,16 +42,17 @@ export function WardLayer() {
     [wards],
   );
 
-  useMapEvent("zoomend", () => {
+  const syncLabels = () =>
     map.getContainer().classList.toggle("wards-compact", map.getZoom() < NAMES_FROM_ZOOM);
-  });
+  useMapEvent("zoomend", syncLabels);
 
-  // Frame the whole pilot area once, whatever the screen size. This fires zoomend,
-  // which sets the label mode above.
   useEffect(() => {
     const bounds = layer.current?.getBounds();
-    if (wards.length && bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24] });
-  }, [wards, map]);
+    if (fit && wards.length && bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24] });
+    else syncLabels();
+    // syncLabels only reads the map, which is already a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wards, map, fit]);
 
   if (!wards.length) return null;
 

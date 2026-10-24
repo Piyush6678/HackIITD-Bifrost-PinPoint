@@ -12,7 +12,9 @@ export function IssueLayer() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   useMapEvent("moveend", () => load(map.getBounds()));
-  useEffect(() => load(map.getBounds()), [map, load]);
+  useEffect(() => {
+    load(map.getBounds());
+  }, [map, load]);
 
   return (
     <>
@@ -52,7 +54,7 @@ function MapStatus({
 }) {
   // Rendered inside the map container, so it needs Leaflet's control z-index to sit above the panes.
   return (
-    <div className="pointer-events-none absolute left-3 top-3 z-[1000]">
+    <div className="pointer-events-none absolute left-3 top-3 z-1000">
       <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-line bg-white/95 px-3 py-1.5 text-xs font-bold text-ink shadow-card">
         {status === "error" ? (
           <>

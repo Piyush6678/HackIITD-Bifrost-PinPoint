@@ -1,6 +1,5 @@
 /* Scan src/ only. With the default (the project root), the Turbopack loader
-   either misses new files or, in Next 16, also watches .next/dev/logs, which
-   the dev server writes on every page load: an endless reload loop. */
+   misses classes in files created after the dev server started. */
 @import "tailwindcss" source("../");
 
 @theme {
@@ -212,4 +211,22 @@ body {
 
 .issue-popup .leaflet-popup-content p {
   margin: 0;
+}
+
+/* The report pin: the logo's ring, so "this is where your report goes" reads at a glance. */
+.picker-pin {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border: 9px solid var(--color-mint);
+  border-radius: 9999px;
+  background: var(--color-pine);
+  box-shadow:
+    0 0 0 2px #fff,
+    0 4px 12px rgb(18 33 31 / 0.35);
+  cursor: grab;
+}
+
+.leaflet-dragging .picker-pin {
+  cursor: grabbing;
 }

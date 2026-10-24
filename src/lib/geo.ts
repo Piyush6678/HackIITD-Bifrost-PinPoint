@@ -45,3 +45,21 @@ export function bboxToPolygon([minLng, minLat, maxLng, maxLat]: BBox) {
 export function offsetNorth(p: LatLng, metres: number): LatLng {
   return { lat: p.lat + (metres / EARTH_RADIUS_M) * (180 / Math.PI), lng: p.lng };
 }
+
+// Ray casting on a GeoJSON ring ([lng, lat] pairs). Fine for ward-sized polygons,
+// where the curvature of the earth doesn't matter.
+export function pointInRing({ lat, lng }: LatLng, ring: number[][]) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+// Polygon = outer ring followed by holes.
+export function pointInPolygon(point: LatLng, polygon: { coordinates: number[][][] }) {
+  const [outer, ...holes] = polygon.coordinates;
+  return pointInRing(point, outer) && !holes.some((hole) => pointInRing(point, hole));
+}

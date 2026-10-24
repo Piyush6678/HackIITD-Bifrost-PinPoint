@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 const LINKS = [
   { href: "/", label: "Map", icon: MapIcon },
@@ -9,14 +10,42 @@ const LINKS = [
   { href: "/scorecard", label: "Scorecard", icon: ChartIcon },
 ] as const;
 
-function useIsActive() {
+type IsActive = (href: string) => boolean;
+const nothingActive: IsActive = () => false;
+
+function useIsActive(): IsActive {
   const pathname = usePathname();
-  return (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  return (href) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 }
 
+// With cacheComponents, usePathname suspends on routes whose params aren't known at
+// build time (like /issues/[id]). The fallback is the same nav, just without the
+// active marker, so the header renders identically while it resolves.
 export function TopNav() {
-  const isActive = useIsActive();
+  return (
+    <Suspense fallback={<TopNavLinks isActive={nothingActive} />}>
+      <ActiveTopNav />
+    </Suspense>
+  );
+}
 
+export function BottomNav() {
+  return (
+    <Suspense fallback={<BottomNavLinks isActive={nothingActive} />}>
+      <ActiveBottomNav />
+    </Suspense>
+  );
+}
+
+function ActiveTopNav() {
+  return <TopNavLinks isActive={useIsActive()} />;
+}
+
+function ActiveBottomNav() {
+  return <BottomNavLinks isActive={useIsActive()} />;
+}
+
+function TopNavLinks({ isActive }: { isActive: IsActive }) {
   return (
     <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
       {LINKS.filter((l) => l.href !== "/report").map(({ href, label }) => (
@@ -40,9 +69,7 @@ export function TopNav() {
   );
 }
 
-export function BottomNav() {
-  const isActive = useIsActive();
-
+function BottomNavLinks({ isActive }: { isActive: IsActive }) {
   return (
     <nav
       aria-label="Main"

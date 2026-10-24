@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Logo } from "./Logo";
 import { BottomNav, TopNav } from "./NavLinks";
 import { UserMenu } from "./UserMenu";
@@ -24,7 +25,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Pilot · Karol Bagh zone, Delhi
             </span>
             <TopNav />
-            <UserMenu />
+            {/* UserMenu reads the pathname too (for the login ?next= link). */}
+            <Suspense fallback={<span className="size-8 rounded-full bg-white/10" aria-hidden />}>
+              <UserMenu />
+            </Suspense>
           </div>
         </div>
       </header>

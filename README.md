@@ -31,9 +31,9 @@ We are building in phases. This README documents what exists today.
 | 4 | Client API layer, login and register pages | Done |
 | 5 | Base map with ward outlines | Done |
 | **6** | **Issue pins on the map** | **Done** |
-| **7** | **Issue page and upvoting** | **Done** |
-| 8 | Report flow: photo and location | Next |
-| 9 | Report flow: details, duplicate check, submit | Planned |
+| 7 | Issue page and upvoting | Done |
+| **8** | **Report flow: photo and location** | **Done** |
+| 9 | Report flow: details, duplicate check, submit | Next |
 | 10 | Officer accounts and ward assignment | Planned |
 | 11 | Officer work queue for their ward | Planned |
 | 12 | Officer marks a fix with an on-site, GPS-checked after-photo | Planned |
@@ -124,6 +124,7 @@ src/
     Logo.tsx               ring mark and wordmark
     UserMenu.tsx           "Log in" link or avatar menu with logout
     auth/                  AuthLayout · LoginForm · RegisterForm
+    report/                ReportFlow · Stepper · PhotoStep · LocationStep · LocationPickerMap
     map/                   HomeMap (client-only loader) · MapView · WardLayer · IssueLayer · IssuePopup · issuePin · MapPlaceholder
     ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState · Alert
     issue/                 StatusPill · CategoryIcon · SeverityMeter
@@ -145,8 +146,10 @@ src/
     format.ts              labels, relative time, distance, coordinates
     api.ts                 client fetch wrapper, throws ApiError with field errors
     safeNext.ts            validates ?next= redirect targets
+    compressPhoto.ts       in-browser photo compression (about 120 KB JPEG, 1600 px max)
   hooks/useSession.ts      who is logged in, shared across the tab
   hooks/useIssues.ts       issues for the visible map area (debounced, cancels stale requests)
+  hooks/useWards.ts        ward boundaries, fetched once and shared; wardAt() finds the ward for a point
   proxy.ts                 page-level redirects for logged-in / logged-out users
   models/                  User · Issue · Photo · Ward
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
@@ -260,9 +263,9 @@ curl -b cookies.txt http://localhost:3000/api/issues \
 npm test
 ```
 
-43 tests across six suites. The API suites run against a real MongoDB replica set in memory:
+45 tests across six suites. The API suites run against a real MongoDB replica set in memory:
 
-- **geo:** distance accuracy, GeoJSON round trip
+- **geo:** distance accuracy, GeoJSON round trip, point-in-polygon (including holes)
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
 - **auth:** registration, hashing, duplicate emails, validation errors, login, `/me`, logout
 - **issues:** create, duplicate 409, AI suggestion stored next to the user's choice, rate limiting, upvote idempotency and withdrawal, bbox / category / status filters, nearby ordering, detail, photo serving, wards
@@ -293,6 +296,25 @@ npm test
   - Busier issues draw on top, a count badge appears from 2 upvotes, and resolved issues fade back but stay on the map as a record.
   - Pin icons are cached by their visual inputs, so re-renders don't rebuild the DOM.
 - **Popup:** shows the category, status, title, ward and age, how many people are affected, and a link to the issue page. The opened pin gets a halo.
+
+---
+
+## Reporting an issue
+
+`/report` is a three-step flow. It's behind login, because `src/proxy.ts` sends logged-out visitors to `/login?next=/report`.
+
+1. **Photo.**
+   - "Take a photo" opens the rear camera directly on phones (`capture="environment"`). "Choose from gallery" uses the normal picker, and on desktop a photo can be dropped onto the page.
+   - The photo is compressed **in the browser** with `browser-image-compression`, to a JPEG of about 120 KB, at most 1600 px. A typical 1 MB phone photo uploads as about 100 KB, which matters on mobile data.
+   - Files that aren't images, or that can't be decoded (for example HEIC in Chrome), get a clear message instead of a broken upload.
+2. **Location.**
+   - The step asks for GPS as soon as it opens. The pin starts at the fix, with an accuracy circle. If the fix is worse than ±100 m, a note asks for the pin to be dragged to the exact spot.
+   - If location is denied or unavailable, the user taps the map to drop the pin. There's also a "Put the pin at the centre of the map" link for people who find dragging fiddly.
+   - The card below the map shows the coordinates, whether they came from GPS or were placed by hand, and the **ward**, worked out in the browser with a point-in-polygon check against the ward boundaries. Pins outside the six pilot wards are labelled as such, but they're still allowed.
+   - The ward outlines are drawn on the picker map, but it doesn't zoom out to fit them, so it stays on the pin.
+3. **Details.** Phase 9 adds the form, the nearby-issues check and submission. Today this step shows the photo and location that will be sent.
+
+Going Back and forward keeps the photo and the pin. The photo preview is a local blob URL, released as soon as it's replaced or the flow is left.
 
 ---
 
@@ -364,8 +386,9 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 8 starts the report flow at `/report`:
+Phase 9 finishes the report flow:
 
-- a camera or file input, compressed in the browser to about 120 KB
-- a location step that starts from the device GPS, with a draggable pin to correct it
-- manual pin placement on the map when location permission is denied
+- the details form: title, category chips, severity and description
+- an "Already reported near you" check using `/api/issues/nearby` before submitting, so people can add their voice instead
+- multipart submit to `POST /api/issues`; a 409 shows the existing issue with "Add your voice instead"
+- a confirmation screen that links to the new issue

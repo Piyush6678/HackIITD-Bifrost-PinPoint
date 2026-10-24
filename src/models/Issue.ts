@@ -1,4 +1,6 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
+// Registers the Ward model, so populate("ward") works even before anything else imports it.
+import "./Ward";
 import { CATEGORIES, DUPLICATE_RADIUS_M, STATUSES, type Category, type Status } from "@/lib/constants";
 import { toGeoPoint, type GeoPoint, type LatLng } from "@/lib/geo";
 
