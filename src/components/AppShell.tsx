@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { BottomNav, TopNav } from "./NavLinks";
+import { UserMenu } from "./UserMenu";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Pilot · Karol Bagh zone, Delhi
             </span>
             <TopNav />
+            <UserMenu />
           </div>
         </div>
       </header>

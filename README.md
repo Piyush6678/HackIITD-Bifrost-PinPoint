@@ -24,9 +24,9 @@ We are building in phases. This README documents what exists today.
 | 0 | Project setup, tooling | Done |
 | 1 | Backend core: auth, issues, duplicate detection, upvotes, wards | Done |
 | 2 | Design tokens, fonts, logo, app shell | Done |
-| **3** | **UI primitives: buttons, fields, status pills, category icons** | **Done** |
-| 4 | Client API layer, login and register pages | Next |
-| 5 | Base map with ward outlines | Planned |
+| 3 | UI primitives: buttons, fields, status pills, category icons | Done |
+| **4** | **Client API layer, login and register pages** | **Done** |
+| 5 | Base map with ward outlines | Next |
 | 6 | Issue pins on the map | Planned |
 | 7 | Side panel, filters and sorting | Planned |
 | 8 | Issue detail page and upvoting | Planned |
@@ -111,13 +111,16 @@ src/
     layout.tsx             fonts, metadata, app shell
     page.tsx               home: info panel + map area
     not-found.tsx          404 page
+    login/, register/      auth pages
     globals.css            Tailwind theme tokens (colours, radii, shadows)
     icon.svg               favicon
   components/
     AppShell.tsx           top bar (desktop), skip link, main region
     NavLinks.tsx           top nav and mobile bottom tab bar
     Logo.tsx               ring mark and wordmark
-    ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState
+    UserMenu.tsx           "Log in" link or avatar menu with logout
+    auth/                  AuthLayout · LoginForm · RegisterForm
+    ui/                    Button · TextField / TextArea / Select · Chip · Skeleton · EmptyState · Alert
     issue/                 StatusPill · CategoryIcon · SeverityMeter
   app/api/                 Route handlers (one folder per endpoint)
     auth/                  register · login · logout · me
@@ -135,6 +138,10 @@ src/
     serialize.ts           public JSON shape of an issue
     validators.ts          Zod schemas for every request
     format.ts              labels, relative time, distance, coordinates
+    api.ts                 client fetch wrapper, throws ApiError with field errors
+    safeNext.ts            validates ?next= redirect targets
+  hooks/useSession.ts      who is logged in, shared across the tab
+  proxy.ts                 page-level redirects for logged-in / logged-out users
   models/                  User · Issue · Photo · Ward
   data/pilotWards.ts       pilot ward boundaries (Karol Bagh zone)
 scripts/seed-wards.ts
@@ -247,13 +254,29 @@ curl -b cookies.txt http://localhost:3000/api/issues \
 npm test
 ```
 
-37 tests across five suites. The API suites run against a real MongoDB replica set in memory:
+43 tests across six suites. The API suites run against a real MongoDB replica set in memory:
 
 - **geo:** distance accuracy, GeoJSON round trip
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
 - **auth:** registration, hashing, duplicate emails, validation errors, login, `/me`, logout
 - **issues:** create, duplicate 409, AI suggestion stored next to the user's choice, rate limiting, upvote idempotency and withdrawal, bbox / category / status filters, nearby ordering, detail, photo serving, wards
 - **format:** relative times, distances, coordinates, severity labels
+- **proxy:** login redirects with `next`, forged cookies, logged-in users kept off auth pages, open-redirect protection
+
+---
+
+## Sessions in the browser
+
+- **Cookie:** logging in or registering sets the httpOnly `pp_session` cookie. Page JavaScript never sees the token.
+- **`useSession()`:** reads `/api/auth/me` once per tab and shares the result through a small external store. The header, forms and later pages all agree on who is logged in without refetching.
+- **`src/proxy.ts`:** Next 16's replacement for middleware. It verifies the JWT, then:
+  - redirects logged-out visitors from `/report` and `/dashboard` to `/login?next=…`
+  - sends logged-in users away from `/login` and `/register`
+  
+  It only exists to make navigation pleasant. Every API route still checks the session itself, so the proxy isn't the security boundary.
+- **`?next=`:** only same-site paths are accepted (`safeNext`), so a crafted link can't bounce someone to another site after they log in.
+- **Full navigation after login and logout:** this is deliberate. Next's client router caches prefetched pages, and a page prefetched while logged out is the proxy's redirect to login. A full navigation drops those stale entries.
+- **Form errors:** they come straight from the API's Zod schemas, so messages like "Enter a valid email address" are written once, on the server.
 
 ---
 
@@ -295,11 +318,14 @@ Shared pieces live in `src/components/ui` (generic) and `src/components/issue` (
 | `SeverityMeter` | Five segments, which turn brick from severity 4 up. Exposed as `role="meter"`. |
 | `Skeleton`, `IssueCardSkeleton`, `Spinner`, `EmptyState` | Loading and empty states, so no screen is ever blank. |
 
+`globals.css` declares `@source "../"`. Without it, Tailwind's Turbopack loader doesn't watch the project root, so classes in newly created files never reach the dev server's CSS until a restart.
+
 Tailwind only generates classes it can find in the source, so colour classes are always written out in full in lookup tables (`bg-cat-pothole`, never `` `bg-cat-${category}` ``).
 
 **Layout**
 
-- **Desktop:** the home page is a fixed-height split. A scrolling info panel sits on the left, and the map fills the rest of the screen.
+- **Desktop:** the home page is a fixed-height split. An info panel sits on the left, and the map fills the rest of the screen. The panel is sized to fit a 1536×730 viewport, which is a typical laptop at 125% Windows scaling, without scrolling.
+- **Short screens:** on desktop-width screens 820 px tall or less, the root font size drops to 15 px. Everything is in `rem`, so the whole interface scales down evenly instead of feeling zoomed in.
 - **Phones:** the map comes first, the panel stacks below it, and navigation moves to a bottom tab bar within thumb reach.
 - **Accessibility:** a "Skip to content" link, visible focus rings, and `aria-current` on the active nav item.
 
@@ -307,9 +333,8 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 4 connects the frontend to the API:
+Phase 5 replaces the placeholder on the home page with the real map:
 
-- a small typed fetch client that understands the API's error shape
-- a session hook backed by `/api/auth/me`
-- login and register pages with inline field errors
-- a user menu in the header, and a route guard (`src/proxy.ts`) that sends logged-out users from `/report` to login
+- Leaflet with OpenStreetMap tiles, loaded only in the browser
+- centred on the pilot area, with the six ward outlines drawn from `/api/wards?boundary=true`
+- ward names on hover

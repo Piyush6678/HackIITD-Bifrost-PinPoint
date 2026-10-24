@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Without an explicit source, Tailwind's Turbopack loader doesn't watch the
+   project root, so classes in newly created files never reach the dev CSS. */
+@source "../";
+
 @theme {
   /* Brand, taken from the pitch deck */
   --color-pine: #0b4f4a;
@@ -48,6 +52,14 @@
 
 :root {
   color-scheme: light;
+}
+
+/* Laptops at 125% display scaling end up around 1536x730 CSS pixels, where
+   16px type feels oversized. Everything is in rem, so this scales it all. */
+@media (min-width: 768px) and (max-height: 820px) {
+  html {
+    font-size: 15px;
+  }
 }
 
 body {

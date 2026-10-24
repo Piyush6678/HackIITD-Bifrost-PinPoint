@@ -8,15 +8,18 @@ const lngN = z.number().min(-180).max(180);
 const lat = z.coerce.number().pipe(latN);
 const lng = z.coerce.number().pipe(lngN);
 
+// Trim before checking, so a stray space pasted with the address doesn't fail it.
+const email = z.string().trim().toLowerCase().pipe(z.email("Enter a valid email address"));
+
 export const registerSchema = z.object({
-  name: z.string().trim().min(2, "Name is too short").max(80),
-  email: z.email().trim().toLowerCase(),
-  password: z.string().min(8, "Use at least 8 characters").max(128),
+  name: z.string().trim().min(2, "Enter your name").max(80, "Keep it under 80 characters"),
+  email,
+  password: z.string().min(8, "Use at least 8 characters").max(128, "Keep it under 128 characters"),
 });
 
 export const loginSchema = z.object({
-  email: z.email().trim().toLowerCase(),
-  password: z.string().min(1),
+  email,
+  password: z.string().min(1, "Enter your password"),
 });
 
 const aiSuggestionSchema = z.object({
