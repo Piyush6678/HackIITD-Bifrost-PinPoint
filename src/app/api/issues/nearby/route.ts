@@ -2,7 +2,7 @@ import { getSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import { toGeoPoint } from "@/lib/geo";
 import { json, route } from "@/lib/http";
-import { serializeIssue } from "@/lib/serialize";
+import { serializeIssue, serializeVerification } from "@/lib/serialize";
 import { nearbySchema, searchParams } from "@/lib/validators";
 import { Issue, type IIssue } from "@/models/Issue";
 
@@ -13,7 +13,9 @@ export const GET = route(async (req) => {
 
   const query: Record<string, unknown> = {};
   if (q.category) query.category = q.category;
-  if (!q.includeResolved) query.status = { $ne: "resolved" };
+  // An explicit status list wins over the resolved toggle.
+  if (q.status) query.status = { $in: q.status };
+  else if (!q.includeResolved) query.status = { $ne: "resolved" };
 
   await connectDB();
   const rows = await Issue.aggregate<IIssue & { distance: number }>([
@@ -27,13 +29,14 @@ export const GET = route(async (req) => {
       },
     },
     { $limit: 50 },
-    { $project: { verification: 0, statusHistory: 0, aiSuggestion: 0, userChoice: 0 } },
+    { $project: { statusHistory: 0, aiSuggestion: 0, userChoice: 0 } },
   ]);
   await Issue.populate(rows, { path: "ward", select: "name number" });
 
   return json({
     issues: rows.map((row) => ({
       ...serializeIssue(row, session?.userId),
+      verification: serializeVerification(row),
       distance: Math.round(row.distance),
     })),
   });

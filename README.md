@@ -38,8 +38,8 @@ We are building in phases. This README documents what exists today.
 | 11 | Officer work queue for their ward, plus officer access requests | Done |
 | **12** | **Officer marks a fix with an on-site, GPS-checked after-photo** | **Done** |
 | **13** | **Verification API: 3 nearby residents confirm or reject** | **Done** |
-| 14 | Verification screen: before/after and vote | Buttons and tallies done; the rest is next |
-| 15 | Gemini: tagging reports and checking before/after photos | Planned |
+| **14** | **Verification screen: before/after, distance check, "Check fixes near you"** | **Done** |
+| 15 | Gemini: tagging reports and checking before/after photos | Next |
 | 16 | Public officer and ward scorecards | Planned |
 | 17 | Alerts: reporters and upvoters asked to verify fixes | Planned |
 | 18 | Escalation: evidence pack, councillor petition, RTI draft | Planned |
@@ -197,7 +197,7 @@ All endpoints return JSON. Errors always look like this:
 | --- | --- | --- | --- |
 | GET | `/api/issues` | public | Query: `bbox=minLng,minLat,maxLng,maxLat`, `category=a,b`, `status=a,b`, `ward=<id>`, `sort=recent\|upvotes\|severity`, `limit` (1–500, default 200) |
 | POST | `/api/issues` | user | Multipart form, described below. 201 with the issue, or 409 with `duplicateOf`. Limit: 10 per hour per user. |
-| GET | `/api/issues/nearby` | public | Query: `lat`, `lng`, `radius` (10–2000 m, default 250), `category`, `includeResolved`. Sorted by distance, and each item has `distance` in metres. |
+| GET | `/api/issues/nearby` | public | Query: `lat`, `lng`, `radius` (10–2000 m, default 250), `category`, `status` (comma-separated, like the list endpoint; wins over `includeResolved`), `includeResolved`. Sorted by distance, and each item has `distance` in metres and `verification` vote counts. |
 | GET | `/api/issues/:id` | public | Full detail, including `statusHistory`, verification counts and `aiSuggestion` |
 | POST | `/api/issues/:id/upvote` | user | Idempotent. Returns `{ upvoteCount, hasUpvoted }`. 409 if the issue is resolved. |
 | DELETE | `/api/issues/:id/upvote` | user | Withdraws your upvote. Also idempotent. |
@@ -474,6 +474,10 @@ When an officer marks an issue fixed, the issue page shows an **"Is it fixed?"**
 - **On record:**
   - `failedVerifications` shows on the issue page ("Verification failed 1 time"), in the officer's queue and in the drawer. The Phase 16 scorecard will count it.
   - It's kept separate from `reopenCount`, which counts problems that came back after being resolved.
+- **Before and after:** once a fix is posted, the issue page shows the two photos together (side by side on wide screens, a Before / After toggle on phones), with when each was taken and how far from the reported spot the officer stood. Resolved issues keep it as a record.
+- **Distance check:** "Check if I can vote" reads your position once and says how far you are, and turns the buttons off if you're beyond 300 m. The server still does the real check.
+- **Check fixes near you:** `/verify` lists fixes waiting for votes within 300 m of you (before/after thumbnails, distance, tallies), from `GET /api/issues/nearby?status=pending_verification`. It asks for your location only when you press the button. Pins for these issues also link to "Check this fix".
+- **Officer drawer:** issues awaiting residents show the live tally. The queue and nearby APIs carry counts only (`verification: { confirms, rejects, needed }`).
 - **Privacy:** the API gives vote counts and the viewer's own vote (`myVote`), never who voted.
 
 ---
@@ -548,8 +552,8 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-The full plan for Phases 14–20 is in [`plan.md`](plan.md). Next up is the rest of Phase 14:
+The full plan for Phases 15–20 is in [`plan.md`](plan.md). Next up is Phase 15, Gemini:
 
-- the before and after photos side by side on the issue page
-- the distance to the issue shown before voting
-- a "Check fixes near you" list of issues waiting for votes within 300 m
+- `lib/gemini.ts` with `tagPhoto` and `compareFix`, both returning `null` on any failure or when no key is set
+- `POST /api/ai/tag`, and suggestions pre-filled in the report details step
+- a before/after comparison stored on the fix and shown in the "Is it fixed?" panel

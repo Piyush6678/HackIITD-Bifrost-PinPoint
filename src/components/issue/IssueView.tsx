@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
-import { CATEGORY_LABELS, formatCoords, formatDate, formatDistance, timeAgo } from "@/lib/format";
+import { CATEGORY_LABELS, formatCoords, formatDate, timeAgo } from "@/lib/format";
 import type { serializeIssueDetail } from "@/lib/serialize";
 import { IssueMiniMap } from "../map/IssueMiniMap";
 import { Alert } from "../ui/Alert";
 import { Button, buttonClasses } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Skeleton } from "../ui/Skeleton";
+import { BeforeAfter } from "./BeforeAfter";
 import { CategoryIcon } from "./CategoryIcon";
 import { CopyLinkButton } from "./CopyLinkButton";
 import { SeverityMeter } from "./SeverityMeter";
@@ -162,38 +163,30 @@ export function IssueView() {
             </div>
           )}
 
-          {issue.photoUrl && (
-            <div className="relative mt-5 aspect-4/3 overflow-hidden rounded-card border border-line bg-mist">
-              <Image
-                src={issue.photoUrl}
-                alt={`Photo of the reported problem: ${issue.title}`}
-                fill
-                unoptimized
-                priority
-                sizes="(min-width: 1024px) 640px, 100vw"
-                className="object-cover"
+          {issue.resolutionPhotoUrl && issue.fix ? (
+            <div className="mt-5">
+              <BeforeAfter
+                title={issue.title}
+                beforeUrl={issue.photoUrl}
+                afterUrl={issue.resolutionPhotoUrl}
+                reportedAt={issue.createdAt}
+                fix={issue.fix}
               />
             </div>
-          )}
-
-          {issue.resolutionPhotoUrl && issue.fix && (
-            <figure className="mt-5">
-              <div className="relative aspect-4/3 overflow-hidden rounded-card border border-line bg-mist">
+          ) : (
+            issue.photoUrl && (
+              <div className="relative mt-5 aspect-4/3 overflow-hidden rounded-card border border-line bg-mist">
                 <Image
-                  src={issue.resolutionPhotoUrl}
-                  alt={`The ward officer's after-photo for: ${issue.title}`}
+                  src={issue.photoUrl}
+                  alt={`Photo of the reported problem: ${issue.title}`}
                   fill
                   unoptimized
+                  priority
                   sizes="(min-width: 1024px) 640px, 100vw"
                   className="object-cover"
                 />
               </div>
-              <figcaption className="mt-2 text-sm text-ink-soft">
-                <span className="font-bold text-ink">After.</span> Posted by the ward officer {timeAgo(issue.fix.at)},
-                taken {formatDistance(issue.fix.distance)} from the reported spot.
-                {issue.fix.note && <span className="mt-1 block">&ldquo;{issue.fix.note}&rdquo;</span>}
-              </figcaption>
-            </figure>
+            )
           )}
 
           {issue.description && (

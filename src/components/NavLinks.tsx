@@ -7,6 +7,7 @@ import { Suspense } from "react";
 const LINKS = [
   { href: "/", label: "Map", icon: MapIcon },
   { href: "/report", label: "Report", icon: PlusIcon },
+  { href: "/verify", label: "Verify", icon: CheckIcon },
   { href: "/scorecard", label: "Scorecard", icon: ChartIcon },
 ] as const;
 
@@ -75,7 +76,7 @@ function BottomNavLinks({ isActive }: { isActive: IsActive }) {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <ul className="grid grid-cols-3">
+      <ul className="grid grid-cols-4">
         {LINKS.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           const primary = href === "/report";
@@ -120,6 +121,15 @@ function PlusIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={className} aria-hidden>
       <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12.5 2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

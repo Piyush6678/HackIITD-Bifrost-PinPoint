@@ -3,7 +3,7 @@
 What works today (Phases 0–13), who it's for, and how to use it. The README has the API details and setup.
 
 **The loop we're building:** a resident reports a problem → it lands in the ward officer's queue → the officer fixes it and posts a live, GPS-checked after-photo → residents nearby confirm or reject → public scorecards.
-Everything up to and including resident verification is built. Scorecards, alerts and escalation come next (see [`plan.md`](plan.md)).
+Everything up to and including the verification screen is built. Scorecards, alerts and escalation come next (see [`plan.md`](plan.md)).
 
 ---
 
@@ -83,6 +83,10 @@ Everything up to and including resident verification is built. Scorecards, alert
    - Limit: 10 reports an hour per person.
 
 ### Checking a fix (issue page)
+- **Before and after:** the two photos sit together once a fix is posted (side by side, or a Before / After toggle on phones), with when each was taken and how far from the spot the officer stood.
+- **Distance check:** "Check if I can vote" says how far you are from the issue before you press anything.
+- **Check fixes near you:** `/verify` lists fixes within 300 m waiting for votes, with before/after thumbnails and tallies. Map pins for these issues link to "Check this fix".
+- **Officer drawer:** shows the live tally for issues awaiting residents.
 - **"Is it fixed?" panel:** appears once an officer marks an issue fixed. It shows the category's hint about what to look for, and two buttons, **Fixed** and **Not fixed**.
 - **Tallies:** both sides are always visible, for example "Say fixed 1 of 3 · Say not fixed 0 of 3".
 - **First side to 3 decides:**
@@ -156,7 +160,6 @@ Everything up to and including resident verification is built. Scorecards, alert
 ## Coming next
 | Phase | Feature |
 | --- | --- |
-| 14 | Rest of the verification screen: before/after side by side, distance before voting, "Check fixes near you" page |
 | 15 | Gemini suggests the category and severity, and compares before and after photos |
 | 16 | Public officer and ward scorecards |
 | 17 | Live alerts asking reporters and upvoters to verify fixes |

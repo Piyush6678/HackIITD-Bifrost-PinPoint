@@ -27,9 +27,16 @@ export function IssuePopup({ issue }: { issue: PublicIssue }) {
           <strong className="text-ink">{issue.upvoteCount}</strong>{" "}
           {issue.upvoteCount === 1 ? "person affected" : "people affected"}
         </span>
-        <Link href={`/issues/${issue.id}`} className="text-xs font-bold text-brand hover:underline">
-          View issue →
-        </Link>
+        <div className="flex flex-col items-end gap-1">
+          <Link href={`/issues/${issue.id}`} className="text-xs font-bold text-brand hover:underline">
+            View issue →
+          </Link>
+          {issue.status === "pending_verification" && (
+            <Link href={`/issues/${issue.id}`} className="text-xs font-bold text-status-pending hover:underline">
+              Check this fix
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

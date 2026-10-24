@@ -6,7 +6,9 @@ import { useState } from "react";
 import { useSession } from "@/hooks/useSession";
 import { api, ApiError } from "@/lib/api";
 import { isAfterDark } from "@/lib/categories";
-import { CONFIRM_RADIUS_M } from "@/lib/constants";
+import { CONFIRM_RADIUS_M, FIX_MAX_ACCURACY_M } from "@/lib/constants";
+import { formatDistance } from "@/lib/format";
+import { distanceInMetres } from "@/lib/geo";
 import type { serializeIssueDetail } from "@/lib/serialize";
 import { Alert } from "../ui/Alert";
 import { Button, buttonClasses } from "../ui/Button";
@@ -28,9 +30,27 @@ export function VerifyPanel({ issue, onVoted }: Props) {
   const [busy, setBusy] = useState<Vote | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [away, setAway] = useState<{ distance: number; accuracy: number } | null>(null);
+  const [checking, setChecking] = useState(false);
   const [dark] = useState(() => isAfterDark());
   const { confirms, rejects, needed } = issue.verification;
   const daylightBlocked = issue.verifyAfterDark && !dark;
+
+  async function checkDistance() {
+    setChecking(true);
+    setError(null);
+    try {
+      const at = await currentPosition();
+      setAway({ distance: distanceInMetres(at, issue.location), accuracy: at.accuracy });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't get your location. Try again.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  const tooFar = away !== null && away.distance > CONFIRM_RADIUS_M;
+  const tooRough = away !== null && away.accuracy > FIX_MAX_ACCURACY_M;
 
   async function cast(vote: Vote) {
     setBusy(vote);
@@ -78,16 +98,45 @@ export function VerifyPanel({ issue, onVoted }: Props) {
     action = (
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="accent" loading={busy === "confirm"} disabled={busy !== null} onClick={() => cast("confirm")}>
+          <Button
+            variant="accent"
+            loading={busy === "confirm"}
+            disabled={busy !== null || tooFar}
+            onClick={() => cast("confirm")}
+          >
             Fixed
           </Button>
-          <Button variant="secondary" loading={busy === "reject"} disabled={busy !== null} onClick={() => cast("reject")}>
+          <Button
+            variant="secondary"
+            loading={busy === "reject"}
+            disabled={busy !== null || tooFar}
+            onClick={() => cast("reject")}
+          >
             Not fixed
           </Button>
         </div>
         <p className="text-xs text-ink-faint">
           {step ?? `You need to be within ${CONFIRM_RADIUS_M} m of the issue. Your location is only used for this check.`}
         </p>
+        <div aria-live="polite" className="text-sm">
+          {away ? (
+            <p className={tooFar || tooRough ? "font-bold text-brick" : "font-bold text-brand"}>
+              {tooFar
+                ? `You're ${formatDistance(away.distance)} away, only people within ${CONFIRM_RADIUS_M} m can vote.`
+                : tooRough
+                  ? `Your location is only accurate to ${Math.round(away.accuracy)} m. Step into the open and check again.`
+                  : `You're ${formatDistance(away.distance)} away, you can vote.`}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={checkDistance}
+            disabled={checking || busy !== null}
+            className="font-bold text-brand hover:underline disabled:opacity-50"
+          >
+            {checking ? "Checking…" : away ? "Check again" : "Check if I can vote"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -133,7 +182,7 @@ function Tally({ label, count, needed, tone }: { label: string; count: number; n
   );
 }
 
-function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number }> {
+export function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number }> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {
       reject(new Error("This browser can't share its location, so we can't check you're nearby."));
