@@ -33,8 +33,8 @@ We are building in phases. This README documents what exists today.
 | **6** | **Issue pins on the map** | **Done** |
 | 7 | Issue page and upvoting | Done |
 | **8** | **Report flow: photo and location** | **Done** |
-| 9 | Report flow: details, duplicate check, submit | Next |
-| 10 | Officer accounts and ward assignment | Planned |
+| **9** | **Report flow: details, duplicate check, submit** | **Done** |
+| 10 | Officer accounts and ward assignment | Next |
 | 11 | Officer work queue for their ward | Planned |
 | 12 | Officer marks a fix with an on-site, GPS-checked after-photo | Planned |
 | 13 | Verification API: 3 nearby residents confirm or reject | Planned |
@@ -386,9 +386,8 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ## Roadmap (next phase)
 
-Phase 9 finishes the report flow:
+Phase 10 sets up officer accounts:
 
-- the details form: title, category chips, severity and description
-- an "Already reported near you" check using `/api/issues/nearby` before submitting, so people can add their voice instead
-- multipart submit to `POST /api/issues`; a 409 shows the existing issue with "Add your voice instead"
-- a confirmation screen that links to the new issue
+- `scripts/make-official.ts` and an admin-only `POST /api/admin/officials` to assign the `official` role and a ward
+- `/dashboard` limited to the `official` and `admin` roles
+- one seeded officer per pilot ward, with tests for the role checks

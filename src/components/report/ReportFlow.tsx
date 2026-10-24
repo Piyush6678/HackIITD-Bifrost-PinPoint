@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatCoords } from "@/lib/format";
-import { Button } from "../ui/Button";
+import type { PublicIssue } from "@/lib/serialize";
+import { ConfirmationStep } from "./ConfirmationStep";
+import { DetailsStep, EMPTY_DETAILS, type ReportDetails } from "./DetailsStep";
 import { LocationStep } from "./LocationStep";
 import type { PickedPlace } from "./LocationPickerMap";
 import { PhotoStep, type ReportPhoto } from "./PhotoStep";
@@ -14,6 +15,8 @@ export function ReportFlow() {
   const [step, setStep] = useState<Step>(0);
   const [photo, setPhoto] = useState<ReportPhoto | null>(null);
   const [place, setPlace] = useState<PickedPlace | null>(null);
+  const [details, setDetails] = useState<ReportDetails>(EMPTY_DETAILS);
+  const [created, setCreated] = useState<PublicIssue | null>(null);
 
   // Blob URLs hold the image in memory until revoked.
   useEffect(
@@ -26,7 +29,15 @@ export function ReportFlow() {
   // Each step starts at the top, which matters on phones.
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [step]);
+  }, [step, created]);
+
+  if (created) {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 py-6 md:py-10">
+        <ConfirmationStep issue={created} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 md:py-10">
@@ -47,24 +58,14 @@ export function ReportFlow() {
         )}
 
         {step === 2 && photo && place && (
-          <section aria-labelledby="details-heading">
-            <h1 id="details-heading" className="font-serif text-[1.75rem] font-bold leading-tight text-ink">
-              What&apos;s the problem?
-            </h1>
-            <div className="mt-5 flex items-center gap-3 rounded-card border border-line bg-white p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL */}
-              <img src={photo.url} alt="" className="size-16 rounded-md object-cover" />
-              <div>
-                <p className="text-sm font-bold text-ink">Photo and location ready</p>
-                <p className="mt-0.5 font-mono text-xs text-ink-faint">{formatCoords(place)}</p>
-              </div>
-            </div>
-            <div className="mt-6">
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                Back
-              </Button>
-            </div>
-          </section>
+          <DetailsStep
+            photo={photo}
+            place={place}
+            details={details}
+            onChange={setDetails}
+            onBack={() => setStep(1)}
+            onCreated={setCreated}
+          />
         )}
       </div>
     </div>
