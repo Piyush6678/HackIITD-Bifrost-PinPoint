@@ -15,7 +15,14 @@ export const STATUSES = [
   "resolved",
 ] as const;
 
-export const ROLES = ["citizen", "official", "admin"] as const;
+export const STATUS_LABELS: Record<(typeof STATUSES)[number], string> = {
+  open: "Open",
+  in_progress: "In progress",
+  pending_verification: "Pending verification",
+  resolved: "Resolved",
+};
+
+export const ROLES =["citizen", "official", "admin"] as const;
 
 export type Category = (typeof CATEGORIES)[number];
 export type Status = (typeof STATUSES)[number];

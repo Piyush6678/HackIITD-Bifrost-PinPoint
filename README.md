@@ -22,15 +22,26 @@ We are building in phases. This README documents what exists today.
 | Phase | Scope | State |
 | --- | --- | --- |
 | 0 | Project setup, tooling | Done |
-| **1** | **Backend core: auth, issues, duplicate detection, upvotes, wards** | **Done** |
-| 2 | Public map, report flow, issue page | Next |
-| 3 | Gemini vision tagging (category, severity, title) | Planned |
-| 4 | Ward official dashboard and status workflow | Planned |
-| 5 | Community verification of fixes (3 votes within 300 m) | Planned |
-| 6 | Live updates over Server-Sent Events | Planned |
-| 7 | Public ward scorecard | Planned |
-| 8 | TinyFish agents: file, sync and escalate on MCD-311 / Swachhata / CPGRAMS | Planned |
-| 9 | Seed data, PWA, polish, demo | Planned |
+| 1 | Backend core: auth, issues, duplicate detection, upvotes, wards | Done |
+| **2** | **Design tokens, fonts, logo, app shell** | **Done** |
+| 3 | UI primitives: buttons, fields, status pills, category icons | Next |
+| 4 | Client API layer, login and register pages | Planned |
+| 5 | Base map with ward outlines | Planned |
+| 6 | Issue pins on the map | Planned |
+| 7 | Side panel, filters and sorting | Planned |
+| 8 | Issue detail page and upvoting | Planned |
+| 9 | Report flow: photo and location | Planned |
+| 10 | Report flow: details, duplicate check, submit | Planned |
+| 11 | Gemini tagging API | Planned |
+| 12 | Gemini suggestions in the report flow | Planned |
+| 13 | Official roles and the ward work queue API | Planned |
+| 14 | Official dashboard | Planned |
+| 15 | Status workflow with proof-of-fix photo | Planned |
+| 16 | Community verification API (3 votes within 300 m) | Planned |
+| 17 | Verification screen | Planned |
+| 18 | Live updates over Server-Sent Events | Planned |
+| 19 | Public ward scorecard | Planned |
+| 20 | TinyFish agents (file, sync, escalate), demo data, launch | Planned |
 
 ---
 
@@ -41,7 +52,8 @@ We are building in phases. This README documents what exists today.
 - **TypeScript**, **Zod 4** for request validation
 - **jose** (HS256 JWT) in an httpOnly cookie, **bcryptjs** for password hashing
 - **Vitest** with `mongodb-memory-server` for tests against a real `mongod`
-- Coming up: Tailwind CSS 4, Leaflet with OpenStreetMap, Google Gemini, TinyFish
+- **Tailwind CSS 4** with theme tokens in CSS, and fonts self-hosted through `next/font`
+- Coming up: Leaflet with OpenStreetMap, Google Gemini, TinyFish
 
 ---
 
@@ -95,6 +107,16 @@ The first `npm test` downloads a MongoDB binary, so it is slower than later runs
 
 ```
 src/
+  app/
+    layout.tsx             fonts, metadata, app shell
+    page.tsx               home: info panel + map area
+    not-found.tsx          404 page
+    globals.css            Tailwind theme tokens (colours, radii, shadows)
+    icon.svg               favicon
+  components/
+    AppShell.tsx           top bar (desktop), skip link, main region
+    NavLinks.tsx           top nav and mobile bottom tab bar
+    Logo.tsx               ring mark and wordmark
   app/api/                 Route handlers (one folder per endpoint)
     auth/                  register · login · logout · me
     issues/                list · create · nearby · [id] · [id]/upvote
@@ -231,11 +253,42 @@ npm test
 
 ---
 
+## Design system
+
+The look comes straight from our pitch deck: a civic, editorial style, closer to a newspaper data desk than a startup landing page. Screen drafts are made in Google Stitch first, in the project "PinPoint — Civic Issue Map", which uses these same tokens. They are then built by hand in Tailwind. All tokens live in `src/app/globals.css` as Tailwind v4 `@theme` variables, so they're available as normal utilities (`bg-pine`, `text-ink-soft`, `bg-status-open`, and so on).
+
+**Colour**
+
+| Token | Hex | Used for |
+| --- | --- | --- |
+| `pine` | `#0B4F4A` | Header, primary buttons, dark panels |
+| `brand` / `mint` | `#0F7B6C` / `#13A58A` | Accents, the logo ring, the main call to action |
+| `amber` | `#C97A1C` | Anything an agent does (filing, syncing) |
+| `ink`, `ink-soft`, `ink-faint` | `#12211F` … `#7A8A87` | Text, in three strengths |
+| `mist`, `paper`, `line` | `#EEF4F2`, `#F8FBFA`, `#D8E2DF` | Surfaces and borders |
+
+Each issue status has its own colour: `status-open` (red), `status-progress` (amber), `status-pending` (blue) and `status-resolved` (green). Each category also has its own colour (`cat-pothole`, `cat-garbage`, and so on). Map pins will show the category in the fill and the status in the ring, so the two palettes are kept apart on purpose.
+
+**Type**
+
+- **Source Serif 4** for headings, giving them the deck's editorial voice
+- **Lato** for interface text
+- **IBM Plex Mono** for machine facts such as coordinates, ticket numbers and timestamps
+
+`next/font` self-hosts all three, so there are no requests to Google at runtime.
+
+**Layout**
+
+- **Desktop:** the home page is a fixed-height split. A scrolling info panel sits on the left, and the map fills the rest of the screen.
+- **Phones:** the map comes first, the panel stacks below it, and navigation moves to a bottom tab bar within thumb reach.
+- **Accessibility:** a "Skip to content" link, visible focus rings, and `aria-current` on the active nav item.
+
+---
+
 ## Roadmap (next phase)
 
-Phase 2 adds the frontend on top of this API:
+Phase 3 adds the shared UI pieces every later screen is built from:
 
-- the public map (Leaflet + OpenStreetMap, pins coloured by category)
-- the report flow, with in-browser photo compression, a GPS pin, and a nearby-issues check before submitting
-- the issue page
-- login and register
+- buttons, text fields, selects, chips, skeletons and empty states
+- status pills, a severity meter and a custom icon set for each category
+- small formatting helpers for relative time, distance and labels

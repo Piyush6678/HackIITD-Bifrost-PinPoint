@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Brand, taken from the pitch deck */
+  --color-pine: #0b4f4a;
+  --color-pine-deep: #083b37;
+  --color-pine-soft: #11625b;
+  --color-brand: #0f7b6c;
+  --color-mint: #13a58a;
+  --color-amber: #c97a1c;
+  --color-brick: #a63d35;
+  --color-cobalt: #2f6db0;
+
+  /* Neutrals lean slightly green so they sit well next to the brand */
+  --color-ink: #12211f;
+  --color-ink-soft: #465754;
+  --color-ink-faint: #7a8a87;
+  --color-line: #d8e2df;
+  --color-mist: #eef4f2;
+  --color-paper: #f8fbfa;
+
+  /* Issue lifecycle */
+  --color-status-open: #a63d35;
+  --color-status-progress: #c97a1c;
+  --color-status-pending: #2f6db0;
+  --color-status-resolved: #13a58a;
+
+  /* Category pins. Distinct from status colours on purpose: pins show
+     category in the fill and status in the ring. */
+  --color-cat-pothole: #9a4b2f;
+  --color-cat-garbage: #5e7d2b;
+  --color-cat-streetlight: #b8891a;
+  --color-cat-waterlogging: #2a7fa0;
+  --color-cat-sewage: #6a5a8c;
+  --color-cat-encroachment: #a35670;
+  --color-cat-other: #667673;
+
+  --radius-card: 10px;
+  --shadow-card: 0 1px 2px rgb(18 33 31 / 0.06), 0 4px 16px rgb(18 33 31 / 0.06);
+  --shadow-pop: 0 8px 28px rgb(18 33 31 / 0.16);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-source-serif), Georgia, serif;
+  --font-sans: var(--font-lato), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Small caps-style eyebrow labels used across cards, like the deck's section tags. */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+::selection {
+  background: rgb(19 165 138 / 0.25);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-mint);
+  outline-offset: 2px;
 }
