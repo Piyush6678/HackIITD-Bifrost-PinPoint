@@ -37,8 +37,8 @@ export const NEARBY_MAX_RADIUS_M = 2000;
 
 // An officer marking a fix must be standing at the issue, with a usable GPS fix,
 // and the after-photo must have been taken a moment ago.
-export const FIX_RADIUS_M = 50000;
-export const FIX_MAX_ACCURACY_M = 300;
+export const FIX_RADIUS_M = 500000;
+export const FIX_MAX_ACCURACY_M = 3000;
 export const FIX_PHOTO_MAX_AGE_MIN = 15;
 // Gemini's estimate that the after-photo shows this problem fixed. Below it, the fix is refused.
 export const FIX_MIN_MATCH_PERCENT = 60;
