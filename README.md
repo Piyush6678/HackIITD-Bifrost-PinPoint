@@ -695,7 +695,9 @@ Road damage names "MCD Engineering (PWD for roads over 60 ft)", but the app coul
 - The Phase 18 petition and RTI drafts pick up the councillor and PIO from `Ward.contacts`.
 
 ### 4. Official notices (monitors)
-- `npm run setup:monitors -- --app-url https://...` creates daily TinyFish monitors on Delhi Jal Board's notices and latest-news pages and MCD's site, plus a topic monitor for the pilot place names (`src/data/noticeSources.ts`). They report to `POST /api/webhooks/tinyfish`. Skip `--app-url` and use the cron route instead. Add pages with `--page "Name=url"`. **PWD Delhi's page isn't confirmed**, so add it by hand. **Point the MCD monitor at its notices page** rather than the home page.
+- `npm run setup:monitors -- --app-url https://...` creates four daily TinyFish **search** monitors (`topicQueries` in `src/data/noticeSources.ts`): the pilot place names, Delhi Jal Board water shutdowns, PWD/MCD road works, and MCD sanitation drives. They report to `POST /api/webhooks/tinyfish`. Skip `--app-url` and use the cron route instead.
+  - **No page monitors.** Delhi government sites (delhi.gov.in, Delhi Jal Board, PWD) refuse TinyFish's page fetcher (`proxy_error`), and MCD's home page is built in the browser, so a page monitor only ever sees a blank page. Add a page that does load with `--page "Name=url"`.
+  - Search results include social posts as well as news and official pages, so the admin review step matters: approve news and government sources, reject the rest.
 - TinyFish webhooks aren't signed, so the secret sits in the webhook address (`?secret=`). The payload is treated as untrusted text. A page monitor's text is split into lines and only lines naming a pilot ward become candidates. A topic monitor's new results are used as they are.
 - Candidates are stored as `Notice` rows with `approved: false`, deduplicated by a hash of the address and title, with the wards matched by place name (and the categories by keyword).
 - **Admin page → Notices:** approve or discard. Only approved notices are ever returned by `GET /api/notices`.
@@ -708,7 +710,7 @@ Each pending request has a **"Check public records"** button. It searches only M
 ### What was not done, and what to check
 - **No live TinyFish call has been made.** The client follows TinyFish's documentation, and the server code was tested against a stand-in for it. Run each script once with a real key and read its output before relying on it.
 - Fetch's `format: "json"` for a GeoJSON file, the exact shape of a monitor's page results, and what MCD's pages and notified-roads list look like are not confirmed. The scripts print what they found and fail loudly rather than guess.
-- The 250-ward boundary source and the PWD notices page still need to be found by a person.
+- No open map of the 2022 ward boundaries exists: every downloadable Delhi ward file is the 2017 map (272 wards), and the official 2022 maps are per-ward PDFs on sec.delhi.gov.in. The pilot keeps its six simplified wards.
 
 ---
 

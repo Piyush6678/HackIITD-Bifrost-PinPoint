@@ -190,6 +190,8 @@ export async function createMonitor(input: MonitorInput) {
         webhook_url: input.webhookUrl,
       }),
     },
+    // Creating one runs its first check before answering, which can take a while.
+    90_000,
   );
   return monitor;
 }
