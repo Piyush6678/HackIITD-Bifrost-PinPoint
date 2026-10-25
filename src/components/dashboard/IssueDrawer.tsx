@@ -189,6 +189,12 @@ function Details({ issue }: { issue: QueueIssue }) {
       <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-card bg-mist px-4 py-4">
         <Meta label="Affected">{issue.upvoteCount}</Meta>
         <Meta label="Open for">{formatHours(issue.hoursOpen)}</Meta>
+        <div className="col-span-2">
+          <Meta label="Handled by">
+            {issue.handledBy}
+            {issue.roadLabel && <span className="block text-ink-soft">Road: {issue.roadLabel}</span>}
+          </Meta>
+        </div>
         <Meta label="Reported">{formatDate(issue.createdAt)}</Meta>
         <Meta label="Due by">
           <span className={issue.overdue ? "font-medium text-brick" : undefined}>

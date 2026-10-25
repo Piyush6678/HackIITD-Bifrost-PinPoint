@@ -1,9 +1,9 @@
 # PinPoint: features built so far
 
-What works today (Phases 0–18), who it's for, and how to use it. The README has the API details and setup.
+What works today (Phases 0–19), who it's for, and how to use it. The README has the API details and setup.
 
 **The loop we're building:** a resident reports a problem → it lands in the ward officer's queue → the officer fixes it and posts a live, GPS-checked after-photo → residents nearby confirm or reject → public scorecards.
-Everything up to and including escalation is built. TinyFish data imports and the demo polish come next (see [`plan.md`](plan.md)).
+Everything up to and including the TinyFish data imports is built. The demo data and polish come next (see [`plan.md`](plan.md)).
 
 ---
 
@@ -129,6 +129,15 @@ Everything up to and including escalation is built. TinyFish data imports and th
 - **Fixes residents turned down stay on the issue,** with their photos, as evidence.
 - **Officers see it coming:** the dashboard marks issues "At risk of escalation".
 
+### Official information from TinyFish
+Anything TinyFish brings in is shown in amber with its source and date, and a person reviews it first.
+- **Real ward boundaries:** an import script replaces the simplified rectangles with official outlines, after checking that they are valid, don't overlap and still put the map centre in the right ward.
+- **Who owns the road:** road-damage issues can show whether MCD or PWD looks after the road, from MCD's list of notified roads. When unsure, they say "Likely MCD Engineering".
+- **Ward contacts:** an admin can ask for a ward's councillor and RTI officers from MCD's pages, read what was found, and accept it. The escalation drafts then use the real names.
+- **Official notices:** monitors watch official pages for announcements that name a pilot ward (road work, water shutdowns). An admin approves each one, and approved notices appear on the home page, the issue page and the officer dashboard.
+- **Admin record check:** on an officer request, a button searches only official sites for the applicant and shows what it found. The admin still decides.
+- **A log:** the admin page lists everything TinyFish was asked to do.
+
 ### Public scorecards (`/scorecard`)
 - **Every ward side by side:** share of fixes residents accepted, median time to fix, resolved out of reported, and overdue now, with city totals. Sort by fixes accepted, fastest fixes or most overdue.
 - **One ward** (`/scorecard/:ward`): the same numbers plus first response time, fixes rejected and problems that came back; each officer who has posted fixes there, current or former, with their own record; every overdue issue with its department; and the last 10 verified fixes.
@@ -194,5 +203,4 @@ Everything up to and including escalation is built. TinyFish data imports and th
 ## Coming next
 | Phase | Feature |
 | --- | --- |
-| 19 | TinyFish: official ward boundaries, road ownership, ward contacts and live notices |
 | 20 | Demo data, polish, demo script |

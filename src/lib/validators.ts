@@ -1,6 +1,6 @@
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
-import { CATEGORIES, NEARBY_MAX_RADIUS_M, REQUEST_STATUSES, STATUSES } from "./constants";
+import { CATEGORIES, IMPORT_KINDS, NEARBY_MAX_RADIUS_M, REQUEST_STATUSES, STATUSES } from "./constants";
 import { HttpError } from "./http";
 
 const latN = z.number().min(-90).max(90);
@@ -184,3 +184,20 @@ export const readNotificationsSchema = z.union([
       .max(100),
   }),
 ]);
+
+export const refreshContactsSchema = z.object({ ward: z.coerce.number().int().positive("Pick a ward") });
+
+export const listRunsSchema = z.object({ kind: z.enum(IMPORT_KINDS).optional() });
+
+export const publicNoticesSchema = z.object({
+  ward: z.string().refine(isValidObjectId, "Invalid ward id").optional(),
+  category: z.enum(CATEGORIES).optional(),
+  limit: z.coerce.number().int().min(1).max(20).default(5),
+});
+
+export const listNoticesSchema = z.object({ status: z.enum(["pending", "approved"]).default("pending") });
+
+export const reviewNoticeSchema = z.object({
+  approved: z.boolean(),
+  categories: z.array(z.enum(CATEGORIES)).max(CATEGORIES.length).optional(),
+});

@@ -2,6 +2,7 @@ import { CATEGORY_RULES } from "@/lib/categories";
 import { connectDB } from "@/lib/db";
 import { buildPetition, buildRti, escalationState, pickContact, RTI_FEE, rtiPortal } from "@/lib/escalation";
 import { fromGeoPoint } from "@/lib/geo";
+import { handledBy } from "@/lib/roads";
 import { HttpError, json, route } from "@/lib/http";
 import { objectId } from "@/lib/validators";
 import { Issue } from "@/models/Issue";
@@ -25,7 +26,7 @@ export const GET = route(async (req, ctx: RouteContext<"/api/issues/[id]/escalat
   if (!issue.ward) throw new HttpError(409, "This issue isn't in a ward yet, so there's no office to write to");
 
   const origin = new URL(req.url).origin;
-  const department = CATEGORY_RULES[issue.category].department;
+  const department = issue.roadOwner ? handledBy(issue.category, issue.roadOwner) : CATEGORY_RULES[issue.category].department;
   const facts = {
     title: issue.title,
     category: issue.category,

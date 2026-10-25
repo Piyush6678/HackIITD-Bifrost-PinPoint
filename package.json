@@ -12,7 +12,11 @@
     "seed:wards": "tsx --env-file=.env.local scripts/seed-wards.ts",
     "set-role": "tsx --env-file=.env.local scripts/set-role.ts",
     "seed:officials": "tsx --env-file=.env.local scripts/seed-officials.ts",
-    "ai:accuracy": "tsx --env-file=.env.local scripts/ai-accuracy.ts"
+    "ai:accuracy": "tsx --env-file=.env.local scripts/ai-accuracy.ts",
+    "import:wards": "tsx --env-file=.env.local scripts/import-wards.ts",
+    "import:roads": "tsx --env-file=.env.local scripts/import-roads.ts",
+    "import:contacts": "tsx --env-file=.env.local scripts/import-contacts.ts",
+    "setup:monitors": "tsx --env-file=.env.local scripts/setup-monitors.ts"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",

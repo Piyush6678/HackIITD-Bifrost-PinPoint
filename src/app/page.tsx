@@ -1,5 +1,6 @@
 import { StatusDot } from "@/components/issue/StatusPill";
 import { HomeMap } from "@/components/map/HomeMap";
+import { OfficialNotices } from "@/components/notices/OfficialNotices";
 import { STATUSES, STATUS_LABELS } from "@/lib/constants";
 
 const STEPS = [
@@ -45,6 +46,10 @@ export default function HomePage() {
             ))}
           </ol>
           <p className="mt-2.5 text-xs italic text-ink-faint">Only the community can make the last move.</p>
+        </div>
+
+        <div className="mt-5 empty:hidden">
+          <OfficialNotices limit={3} heading="Official notices in the pilot wards" />
         </div>
 
         <div className="mt-5 flex items-center justify-between border-t border-line pt-3.5 text-xs text-ink-faint">

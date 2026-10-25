@@ -9,6 +9,8 @@ export type QueueIssue = PublicIssue & {
   hoursOpen: number;
   verification: { confirms: number; rejects: number; needed: number };
   escalationRisk: "eligible" | "at_risk" | null;
+  handledBy: string;
+  roadLabel: string | null;
 };
 
 export type Queue = {

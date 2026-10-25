@@ -9,6 +9,7 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Select } from "../ui/Field";
+import { OfficialNotices } from "../notices/OfficialNotices";
 import { Skeleton } from "../ui/Skeleton";
 import { IssueDrawer } from "./IssueDrawer";
 import { QueueTable } from "./QueueTable";
@@ -44,6 +45,11 @@ export function Dashboard() {
         Ranked by how many people are affected, then severity, then how long it has waited.
       </p>
       {isAdmin && <AdminWardPicker value={ward} onChange={setWard} />}
+      {queue?.ward && (
+        <div className="mt-4 empty:hidden">
+          <OfficialNotices ward={queue.ward.id} limit={3} heading="Official notices for your ward" />
+        </div>
+      )}
 
       <div role="tablist" aria-label="Issue status" className="mt-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
         {TABS.map(({ status: value, label }) => {

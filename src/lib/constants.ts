@@ -71,3 +71,16 @@ export const NOTIFICATIONS_PAGE_SIZE = 30;
 export const ESCALATE_OVERDUE_DAYS = 7;
 export const ESCALATE_FAILED_CHECKS = 2;
 export const ESCALATE_REOPENS = 2;
+
+export const IMPORT_KINDS = ["wards", "roads", "contacts", "notices", "records_check"] as const;
+export type ImportKind = (typeof IMPORT_KINDS)[number];
+export const IMPORT_STATUSES = ["running", "needs_review", "applied", "rejected", "completed", "failed"] as const;
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];
+
+// Only these official sites are searched when an admin checks an officer's details.
+export const OFFICIAL_RECORD_DOMAINS = ["mcdonline.nic.in", "mcd.gov.in", "mcd.nic.in", "delhi.gov.in"];
+
+export const ROAD_OWNERS = ["MCD", "PWD"] as const;
+export type RoadOwner = (typeof ROAD_OWNERS)[number];
+// Roads wider than this belong to PWD, not MCD.
+export const PWD_ROAD_MIN_WIDTH_FT = 60;

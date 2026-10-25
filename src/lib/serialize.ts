@@ -3,6 +3,7 @@ import type { IIssue } from "@/models/Issue";
 import { CATEGORY_RULES, isOverdue, slaDueAt } from "./categories";
 import { VERIFY_VOTES_NEEDED } from "./constants";
 import { escalationState } from "./escalation";
+import { handledBy, roadLabel } from "./roads";
 import { fromGeoPoint } from "./geo";
 
 type WardRef = Types.ObjectId | { _id: Types.ObjectId; name: string; number: number } | undefined;
@@ -55,7 +56,8 @@ export function serializeIssue(issue: IssueDoc, viewerId?: string) {
 export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
   return {
     ...serializeIssue(issue, viewerId),
-    department: CATEGORY_RULES[issue.category].department,
+    department: handledBy(issue.category, issue.roadOwner),
+    road: issue.roadOwner && issue.roadName ? { name: issue.roadName, owner: issue.roadOwner, label: roadLabel(issue.roadName, issue.roadOwner) } : null,
     verifyHint: CATEGORY_RULES[issue.category].verifyHint,
     verifyAfterDark: CATEGORY_RULES[issue.category].verifyAfterDark,
     aiSuggestion: issue.aiSuggestion ?? null,

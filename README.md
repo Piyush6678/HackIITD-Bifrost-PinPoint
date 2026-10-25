@@ -43,8 +43,8 @@ We are building in phases. This README documents what exists today.
 | 16 | Public officer and ward scorecards | Done |
 | **17** | **Alerts: bell, notifications, live stream with polling fallback** | **Done** |
 | **18** | **Escalation: evidence pack, councillor petition, RTI draft** | **Done** |
-| 19 | TinyFish: official ward data, road ownership, contacts, notices | Next |
-| 20 | Demo data, polish, demo script | Planned |
+| **19** | **TinyFish: official ward data, road ownership, contacts, notices** | **Done** |
+| 20 | Demo data, polish, demo script | Next |
 
 ---
 
@@ -88,8 +88,10 @@ npm run dev                  # http://localhost:3000
 | `JWT_SECRET` | Phase 1 | Signs session tokens. At least 32 characters. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `GEMINI_API_KEY` | Phase 15 | Google AI Studio key. Leave empty to run without AI; every AI feature just stays hidden. |
 | `GEMINI_MODEL` | Phase 15 | Gemini model id (default `gemini-3.5-flash`) |
-| `TINYFISH_API_KEY` | Phase 19 | TinyFish key, used to import ward boundaries, road lists and contacts, and to monitor official notices |
-| `CRON_SECRET` | Phase 19 | Shared secret for scheduled routes (refreshing official notices) |
+| `TINYFISH_API_KEY` | Phase 19 | TinyFish key, used to import ward boundaries, road lists and contacts, and to monitor official notices. Leave it empty and every TinyFish feature is simply off. |
+| `TINYFISH_WEBHOOK_SECRET` | Phase 19 | Secret in the webhook address the monitors report to. TinyFish doesn't sign webhooks, so this is the only check. |
+| `CRON_SECRET` | Phase 19 | Sent as `Authorization: Bearer ...` to `/api/cron/notices`, which polls the monitors when webhooks can't reach us |
+| `APP_URL` | Phase 19 | Public `https://` address of the site, used by `npm run setup:monitors` to build the webhook address |
 | `DEMO_PASSWORD` | Phase 10 | Password for the demo officer and admin accounts made by `npm run seed:officials` |
 
 `.env.local` is git-ignored. Never commit real keys.
@@ -104,6 +106,10 @@ npm run dev                  # http://localhost:3000
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run seed:wards` | Upsert the pilot wards and sync indexes. Safe to re-run. |
+| `npm run import:wards` | Finds, checks and (with `--write`) saves official ward boundaries. See "TinyFish". |
+| `npm run import:roads` | Reads MCD's notified-roads list. |
+| `npm run import:contacts` | Asks a TinyFish agent for each ward's councillor and RTI officers. |
+| `npm run setup:monitors` | Creates the TinyFish monitors for official notices. Run once. |
 | `npm run seed:officials` | Create one demo officer per pilot ward plus an admin (`*@pinpoint.test`). Uses `DEMO_PASSWORD`, and re-running resets their password to it. |
 | `npm run set-role -- --email … --role official --ward 78` | Make an account an official (or `--role admin` / `--role citizen`). Officials need a government email unless you add `--any-domain`. |
 
@@ -264,6 +270,15 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 | --- | --- | --- |
 | GET | `/api/admin/officer-requests` | Query: `status=pending\|approved\|rejected` (default `pending`). Pending ones oldest first. Each says whether the account uses a government email. |
 | PATCH | `/api/admin/officer-requests/:id` | `{ decision: "approve", wardNumber?, anyDomain? }` or `{ decision: "reject", note }`. Approving makes the account an official for that ward (the admin can change the ward). A non-government email needs `anyDomain: true`, meaning the admin has checked who they are. A rejection needs a reason, which the applicant sees. 409 if already reviewed. |
+| POST | `/api/admin/officer-requests/:id/check` | Admin. Searches MCD and Delhi government sites for the applicant and reads the top pages. Returns `{ hits, nameFoundOn }`; a hint only. 503 if TinyFish isn't configured. |
+| GET | `/api/admin/ward-contacts` | Admin. Every ward's contacts (with source and fetch date) and its latest import run, including any proposal waiting for review. |
+| POST | `/api/admin/ward-contacts/refresh` | Admin. `{ ward }`. Starts a TinyFish agent on MCD's pages. 202 with the run; 409 if one is already running for that ward. |
+| GET | `/api/admin/import-runs` | Admin. The TinyFish log, newest first. Optional `kind`. |
+| POST | `/api/admin/import-runs/:id/accept` | Admin. Saves a contacts proposal into the ward. The only way it reaches the ward. 409 if not waiting for review. |
+| POST | `/api/admin/import-runs/:id/reject` | Admin. Discards a contacts proposal. |
+| GET | `/api/admin/notices` | Admin. Query: `status=pending\|approved`. |
+| PATCH | `/api/admin/notices/:id` | Admin. `{ approved, categories? }`. Approving is what makes a notice public. |
+| DELETE | `/api/admin/notices/:id` | Admin. Discards a notice. |
 | GET | `/api/admin/officials` | Officials with their wards |
 | POST | `/api/admin/officials` | `{ email, wardNumber }`. Promotes an **existing** account to official for that ward. The email must be `@mcd.nic.in` or `@delhi.gov.in`. Errors: 404 for no such account or ward, 409 for an admin, 422 for a non-government email. |
 | DELETE | `/api/admin/officials/:id` | Turns an official back into a resident. Their past actions stay in issue histories. |
@@ -279,6 +294,9 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 | POST | `/api/notifications/read` | Logged in. `{ all: true }` or `{ ids: [...] }`. Only touches the caller's own notifications. Returns `{ updated, unreadCount }`. |
 | GET | `/api/stream` | Logged in. Server-Sent Events (`text/event-stream`): a `notification` event for each new notification, a `: ping` comment every 25 s, and `unavailable` if the change stream can't run. |
 | GET | `/api/issues/:id/escalation` | Public. Ready-to-send `petition` and `rti` drafts (`{ to, subject, body }`), plus the RTI fee and filing portal. 409 unless the issue can be escalated. |
+| GET | `/api/notices` | Public. **Approved** official notices only. Query: `ward` (id), `category`, `limit` (1-20, default 5). A notice with no categories matches every category. |
+| POST | `/api/webhooks/tinyfish` | Where TinyFish monitors report. Needs `?secret=` (or an `x-webhook-secret` header) equal to `TINYFISH_WEBHOOK_SECRET`; 401 otherwise, 503 if no secret is set. Stores candidates unapproved. |
+| POST | `/api/cron/notices` | `Authorization: Bearer <CRON_SECRET>`. Runs each monitor now and ingests the results. `GET` works too, for Vercel Cron. |
 | GET | `/api/scorecard` | Public. Query: `sort=acceptance\|speed\|overdue`. Every pilot ward's metrics plus city totals. |
 | GET | `/api/scorecard/:ward` | Public. One ward by number: its metrics, its officers (name and designation only), the last 10 verified fixes and every overdue issue. 404 outside the pilot. |
 
@@ -636,11 +654,62 @@ When the ward doesn't deliver, residents get evidence-backed ways to push furthe
 
 ---
 
+## TinyFish: official public information (Phase 19)
+
+**Decision:** PinPoint does not file complaints on government portals. Officers already work and close issues here, and residents verify them here, so filing on MCD-311 or Swachhata would only duplicate it. TinyFish instead brings in **official public information** that makes the loop accurate.
+
+**Rules for every item:** TinyFish imports or refreshes data, and **a person reviews it** before it's used. The app never scrapes a government site while a resident is waiting. Anything TinyFish brought in is shown in **amber**, with its source and when it was fetched. Every run is logged in the admin page's "TinyFish runs" tab.
+
+**The client** (`lib/tinyfish.ts`) wraps the Fetch, Search, Agent and Monitor APIs (`X-API-Key` header) and checks every answer with Zod. With no `TINYFISH_API_KEY`, each call throws a `TinyFishError` with code `not_configured`, routes answer 503, and the rest of the app is unaffected.
+
+### 1. Real ward boundaries
+`src/data/pilotWards.ts` uses simplified rectangles, so a report near a ward edge can land in the wrong ward and reach the wrong officer. `npm run import:wards` replaces them:
+
+- With no arguments it searches MCD and open-data sites and prints candidate sources. Pick the 250-ward map (post-2022; the older 272-ward data is wrong) and run it again with `--url <geojson>` or `--file <path>`.
+- `lib/wardImport.ts` reads the GeoJSON, finds the number, name and zone properties under their usual spellings, keeps the largest piece of a MultiPolygon, closes rings and fixes swapped `[lat, lng]` pairs, saying so for each.
+- **Checks before anything is written:** every pilot ward is found (by name, then number); outlines are inside Delhi and don't cross themselves; no two wards overlap by more than 5%; and the default map centre still lands in ward 78. It prints what would change per ward.
+- With `--write` and every check passing, it writes `src/data/wards.generated.ts` (with the source and date in its header). `pilotWards.ts` then uses those boundaries, and `npm run seed:wards` loads them.
+- PinPoint keeps its own ward numbers. If the official file numbers a ward differently, the script says so instead of renumbering.
+- `seed:wards` no longer wipes `contacts`, so a reseed can't erase imported contacts.
+- Loading all 250 wards is left out: only the pilot wards are imported.
+
+### 2. Who owns the road
+Road damage names "MCD Engineering (PWD for roads over 60 ft)", but the app couldn't tell which applied.
+
+- `npm run import:roads` finds MCD's "List of Notified Roads" (or takes `--url` / `--file`), reads the road tables out of the page or PDF by their headings, and with `--write` saves `src/data/notifiedRoads.generated.ts`. It prints a sample first. If it finds no table it shows the start of the text instead of guessing.
+- After a road-damage report is saved (using `after()`, so the resident never waits), `lib/roadOwner.ts` matches the report's `address` and the nearest named road from OpenStreetMap's Nominatim (cached, one request a second, identifying User-Agent) against the list.
+- A road in the list is `MCD`, or `PWD` if its width is over 60 ft. A match must be unambiguous: a vague name like "Main Road", or two roads with different owners, leaves it unknown.
+- The issue stores `roadOwner` and `roadName`. The issue page and the officer's drawer then say "Handled by MCD Engineering · Road: Pusa Road (MCD notified road)". When unknown they say "Likely MCD Engineering (PWD for roads over 60 ft)".
+- The RTI draft uses the matched body, so PWD roads point to the Delhi government RTI portal.
+
+### 3. Contacts for escalation
+- `npm run import:contacts [--ward N] [--apply]` starts a TinyFish agent per ward on the most relevant MCD page, asking for the councillor, the PIO and First Appellate Authority for RTI, and the zone's Deputy Commissioner. The goal says to include a phone number or email only if it is published, and never to guess.
+- The answer is validated and stored as a **proposal** on an `ImportRun`, with a diff against what the ward has now. `Ward.contacts` is not touched until an admin accepts it (`--apply` does the same from the script).
+- **Admin page → Ward contacts:** each ward's contacts with source and fetch date, a "Refresh from MCD" button (async; the page checks again every 8 s), and the proposed changes with Accept and Discard.
+- The Phase 18 petition and RTI drafts pick up the councillor and PIO from `Ward.contacts`.
+
+### 4. Official notices (monitors)
+- `npm run setup:monitors -- --app-url https://...` creates daily TinyFish monitors on Delhi Jal Board's notices and latest-news pages and MCD's site, plus a topic monitor for the pilot place names (`src/data/noticeSources.ts`). They report to `POST /api/webhooks/tinyfish`. Skip `--app-url` and use the cron route instead. Add pages with `--page "Name=url"`. **PWD Delhi's page isn't confirmed**, so add it by hand. **Point the MCD monitor at its notices page** rather than the home page.
+- TinyFish webhooks aren't signed, so the secret sits in the webhook address (`?secret=`). The payload is treated as untrusted text. A page monitor's text is split into lines and only lines naming a pilot ward become candidates. A topic monitor's new results are used as they are.
+- Candidates are stored as `Notice` rows with `approved: false`, deduplicated by a hash of the address and title, with the wards matched by place name (and the categories by keyword).
+- **Admin page → Notices:** approve or discard. Only approved notices are ever returned by `GET /api/notices`.
+- **Where approved notices appear (amber):** a list on the home page panel, the issue page when a notice matches its ward and category, and the officer dashboard for their ward.
+- **Cost:** a handful of monitors, once a day. Check the TinyFish wallet before a demo.
+
+### 5. Helping admins check officer requests
+Each pending request has a **"Check public records"** button. It searches only MCD and Delhi government domains for the applicant's name, designation and ward, reads the top three pages, and shows each with a link and whether the name appears (with the words around it). The admin still decides. The log keeps only counts, not the name.
+
+### What was not done, and what to check
+- **No live TinyFish call has been made.** The client follows TinyFish's documentation, and the server code was tested against a stand-in for it. Run each script once with a real key and read its output before relying on it.
+- Fetch's `format: "json"` for a GeoJSON file, the exact shape of a monitor's page results, and what MCD's pages and notified-roads list look like are not confirmed. The scripts print what they found and fail loudly rather than guess.
+- The 250-ward boundary source and the PWD notices page still need to be found by a person.
+
+---
+
 ## Roadmap (next phase)
 
-The full plan is in [`plan.md`](plan.md). Next up is Phase 19, TinyFish as a source of official public information, each item reviewed by a person before use:
+The full plan is in [`plan.md`](plan.md). Next up is Phase 20, the demo and launch:
 
-- real MCD ward boundaries in place of the simplified rectangles
-- whether a road is MCD's or PWD's, to fill in "Handled by"
-- ward contacts (councillor, PIO) for the escalation drafts
-- live official notices from monitors
+- `scripts/seed-demo.ts` with the Ward 78 story: a pothole 40 neighbours support, a first fix residents reject, a second that is verified, plus an overdue issue ready to escalate and a streetlight waiting for night
+- a PWA manifest, a polish pass at 390 px and 1536x730, accessibility and Lighthouse checks
+- deploy to Vercel and Atlas, check that polling works where the live stream is cut, and rehearse the demo script

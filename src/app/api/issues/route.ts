@@ -1,4 +1,5 @@
 import type { QueryFilter } from "mongoose";
+import { after } from "next/server";
 import { getSession, requireUser } from "@/lib/auth";
 import { recurrenceCutoff } from "@/lib/categories";
 import type { Category } from "@/lib/constants";
@@ -7,6 +8,7 @@ import { bboxToPolygon, toGeoPoint, type LatLng } from "@/lib/geo";
 import { HttpError, json, route } from "@/lib/http";
 import { formFields, readPhoto } from "@/lib/photos";
 import { rateLimit } from "@/lib/rateLimit";
+import { enrichRoad } from "@/lib/roadOwner";
 import { serializeIssue } from "@/lib/serialize";
 import { createIssueSchema, listIssuesSchema, searchParams } from "@/lib/validators";
 import { Issue, type IIssue } from "@/models/Issue";
@@ -82,6 +84,8 @@ export const POST = route(async (req) => {
     userChoice: { category: input.category, severity: input.severity, title: input.title },
     statusHistory: [{ status: "open", by: session.userId }],
   });
+
+  after(() => enrichRoad(String(issue._id)).catch(() => {}));
 
   const body = serializeIssue(
     { ...issue.toObject(), ward: ward ? { _id: ward._id, name: ward.name, number: ward.number } : undefined },

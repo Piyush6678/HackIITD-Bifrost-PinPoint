@@ -1,7 +1,7 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
 // Registers the Ward model, so populate("ward") works even before anything else imports it.
 import "./Ward";
-import { CATEGORIES, DUPLICATE_RADIUS_M, STATUSES, type Category, type Status } from "@/lib/constants";
+import { CATEGORIES, DUPLICATE_RADIUS_M, ROAD_OWNERS, STATUSES, type Category, type RoadOwner, type Status } from "@/lib/constants";
 import { toGeoPoint, type GeoPoint, type LatLng } from "@/lib/geo";
 
 type Tagging = { category: Category; severity: number; title?: string };
@@ -14,6 +14,9 @@ export interface IIssue {
   severity: number;
   location: GeoPoint;
   address?: string;
+  // Who looks after the road, when it could be worked out from MCD's list of notified roads.
+  roadOwner?: RoadOwner;
+  roadName?: string;
   ward?: Types.ObjectId;
   status: Status;
   reporter: Types.ObjectId;
@@ -91,6 +94,8 @@ const issueSchema = new Schema<IIssue, IssueModel>(
       coordinates: { type: [Number], required: true },
     },
     address: { type: String, trim: true, maxlength: 200 },
+    roadOwner: { type: String, enum: ROAD_OWNERS },
+    roadName: { type: String, trim: true, maxlength: 120 },
     ward: { type: Schema.Types.ObjectId, ref: "Ward" },
     status: { type: String, enum: STATUSES, default: "open" },
     reporter: { type: Schema.Types.ObjectId, ref: "User", required: true },

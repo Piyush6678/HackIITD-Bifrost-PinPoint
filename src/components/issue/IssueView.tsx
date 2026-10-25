@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api";
 import { CATEGORY_LABELS, formatCoords, formatDate, timeAgo } from "@/lib/format";
 import type { serializeIssueDetail } from "@/lib/serialize";
 import { IssueMiniMap } from "../map/IssueMiniMap";
+import { OfficialNotices } from "../notices/OfficialNotices";
 import { Alert } from "../ui/Alert";
 import { Button, buttonClasses } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
@@ -168,6 +169,12 @@ export function IssueView() {
             </div>
           )}
 
+          {issue.ward && (
+            <div className="mt-5 empty:hidden">
+              <OfficialNotices ward={issue.ward.id} category={issue.category} limit={2} />
+            </div>
+          )}
+
           {issue.escalation.eligible && (
             <div className="mt-5">
               <EscalatePanel issueId={issue.id} escalation={issue.escalation} />
@@ -223,7 +230,10 @@ export function IssueView() {
             <Meta label="Reported">
               {formatDate(issue.createdAt)} · {timeAgo(issue.createdAt)}
             </Meta>
-            <Meta label="Handled by">{issue.department}</Meta>
+            <Meta label="Handled by">
+              {issue.department}
+              {issue.road && <span className="block text-ink-soft">Road: {issue.road.label}</span>}
+            </Meta>
             {issue.status !== "resolved" && (
               <Meta label={issue.overdue ? "Overdue since" : "Fix due by"}>
                 <span className={issue.overdue ? "text-brick" : undefined}>{formatDate(issue.dueAt)}</span>

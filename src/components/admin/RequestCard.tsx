@@ -8,6 +8,7 @@ import type { PublicRequest } from "@/lib/officerRequests";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Select, TextArea } from "../ui/Field";
+import { RecordsCheck } from "./RecordsCheck";
 
 type Props = { request: PublicRequest; onDecided: () => void };
 
@@ -47,6 +48,8 @@ export function RequestCard({ request, onDecided }: Props) {
       {r.note && (
         <p className="mx-5 mb-4 border-l-2 border-line pl-3 text-sm leading-relaxed text-ink-soft">{r.note}</p>
       )}
+
+      {r.status === "pending" && mode === "idle" && <RecordsCheck requestId={r.id} />}
 
       {r.status !== "pending" ? (
         <footer className="border-t border-line px-5 py-3 text-sm text-ink-soft">

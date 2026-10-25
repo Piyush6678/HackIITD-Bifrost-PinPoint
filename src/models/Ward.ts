@@ -7,7 +7,8 @@ export interface IWard {
   name: string;
   zone: string;
   boundary: { type: "Polygon"; coordinates: number[][][] };
-  contacts: { department: string; name?: string; phone?: string; email?: string }[];
+  // Where each contact came from and when, for ones imported from official pages.
+  contacts: { department: string; name?: string; phone?: string; email?: string; source?: string; fetchedAt?: Date }[];
 }
 
 interface WardModel extends Model<IWard> {
@@ -29,6 +30,8 @@ const wardSchema = new Schema<IWard, WardModel>({
       name: String,
       phone: String,
       email: String,
+      source: String,
+      fetchedAt: Date,
     },
   ],
 });

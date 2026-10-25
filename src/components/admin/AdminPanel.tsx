@@ -9,10 +9,13 @@ import { Button } from "../ui/Button";
 import { Chip } from "../ui/Chip";
 import { EmptyState } from "../ui/EmptyState";
 import { Skeleton } from "../ui/Skeleton";
+import { ImportRunsTab } from "./ImportRunsTab";
+import { NoticesTab } from "./NoticesTab";
 import { OfficialsTable } from "./OfficialsTable";
 import { RequestCard } from "./RequestCard";
+import { WardContactsTab } from "./WardContactsTab";
 
-type Tab = "requests" | "officials";
+type Tab = "requests" | "officials" | "contacts" | "notices" | "imports";
 
 const FILTERS: { status: RequestStatus; label: string; empty: string }[] = [
   { status: "pending", label: "Waiting", empty: "No one is waiting. New requests from /officer-access show up here." },
@@ -70,12 +73,21 @@ export function AdminPanel() {
         Check who each person is before approving them. An officer can mark issues in their ward as fixed.
       </p>
 
-      <div role="tablist" aria-label="Admin sections" className="mt-6 flex gap-1 border-b border-line">
+      <div role="tablist" aria-label="Admin sections" className="mt-6 flex gap-1 overflow-x-auto border-b border-line">
         <TabButton active={tab === "requests"} onClick={() => setTab("requests")} count={waiting.items?.length}>
           Requests
         </TabButton>
         <TabButton active={tab === "officials"} onClick={() => setTab("officials")} count={officials.items?.length}>
           Officers
+        </TabButton>
+        <TabButton active={tab === "contacts"} onClick={() => setTab("contacts")}>
+          Ward contacts
+        </TabButton>
+        <TabButton active={tab === "notices"} onClick={() => setTab("notices")}>
+          Notices
+        </TabButton>
+        <TabButton active={tab === "imports"} onClick={() => setTab("imports")}>
+          TinyFish runs
         </TabButton>
       </div>
 
@@ -99,6 +111,18 @@ export function AdminPanel() {
               )}
             </ListBody>
           </div>
+        </div>
+      ) : tab === "contacts" ? (
+        <div className="mt-5">
+          <WardContactsTab />
+        </div>
+      ) : tab === "notices" ? (
+        <div className="mt-5">
+          <NoticesTab />
+        </div>
+      ) : tab === "imports" ? (
+        <div className="mt-5">
+          <ImportRunsTab />
         </div>
       ) : (
         <div className="mt-5">

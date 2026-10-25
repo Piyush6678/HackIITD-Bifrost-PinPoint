@@ -9,7 +9,10 @@ async function main() {
   await connectDB();
 
   for (const ward of pilotWards) {
-    await Ward.updateOne({ number: ward.number }, { $set: ward }, { upsert: true });
+    // Contacts come from the admin page's imports, so a reseed must not wipe them.
+    const { contacts, ...rest } = ward;
+    const update = contacts.length ? { $set: ward } : { $set: rest, $setOnInsert: { contacts: [] } };
+    await Ward.updateOne({ number: ward.number }, update, { upsert: true });
   }
   // Make sure the geo indexes exist before the first request needs them.
   await Promise.all([Ward.syncIndexes(), Issue.syncIndexes(), OfficerRequest.syncIndexes()]);

@@ -1,6 +1,7 @@
-// Pilot area around Karol Bagh, Delhi. Boundaries are simplified rectangles
-// laid over the real neighbourhoods so ward lookup works end to end. Replace
-// them with the official MCD ward GeoJSON before going beyond the demo.
+// Pilot area around Karol Bagh, Delhi. Boundaries are simplified rectangles laid over the
+// real neighbourhoods, unless wards.generated.ts holds official ones (npm run import:wards),
+// which then replace them.
+import { generatedWards } from "./wards.generated";
 
 type Box = [minLng: number, minLat: number, maxLng: number, maxLat: number];
 
@@ -19,18 +20,22 @@ const rect = ([minLng, minLat, maxLng, maxLat]: Box) => ({
 
 const ZONE = "Karol Bagh";
 
-export const pilotWards = [
+export const pilotWardDefs = [
   { number: 76, name: "West Patel Nagar", box: [77.155, 28.65, 77.172, 28.665] },
   { number: 78, name: "Karol Bagh", box: [77.172, 28.65, 77.195, 28.665] },
   { number: 80, name: "Dev Nagar", box: [77.195, 28.65, 77.212, 28.665] },
   { number: 77, name: "Ranjeet Nagar", box: [77.155, 28.635, 77.172, 28.65] },
   { number: 79, name: "Rajinder Nagar", box: [77.172, 28.635, 77.195, 28.65] },
   { number: 81, name: "Prasad Nagar", box: [77.195, 28.635, 77.212, 28.65] },
-].map(({ box, ...ward }) => ({
+] as const;
+
+const official = new Map(generatedWards.map((w) => [w.number, w]));
+
+export const pilotWards = pilotWardDefs.map(({ box, ...ward }) => ({
   ...ward,
-  zone: ZONE,
-  boundary: rect(box as Box),
-  contacts: [],
+  zone: official.get(ward.number)?.zone ?? ZONE,
+  boundary: official.get(ward.number)?.boundary ?? rect(box as unknown as Box),
+  contacts: [] as { department: string; name?: string; phone?: string; email?: string }[],
 }));
 
 // Somewhere inside ward 78, used as the default map centre.
