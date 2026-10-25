@@ -7,6 +7,7 @@ import { connectDB } from "@/lib/db";
 import { bboxToPolygon, toGeoPoint, type LatLng } from "@/lib/geo";
 import { HttpError, json, route } from "@/lib/http";
 import { formFields, readPhoto } from "@/lib/photos";
+import { reportBlock, screenReportPhoto } from "@/lib/photoScreen";
 import { rateLimit } from "@/lib/rateLimit";
 import { enrichRoad } from "@/lib/roadOwner";
 import { serializeIssue } from "@/lib/serialize";
@@ -51,6 +52,10 @@ export const POST = route(async (req) => {
   });
   const input = createIssueSchema.parse(formFields(form));
   const photo = await readPhoto(form);
+
+  // Usually already screened (and cached) by /api/ai/tag; checked here so it can't be skipped.
+  const blocked = reportBlock(await screenReportPhoto(photo));
+  if (blocked) throw new HttpError(422, blocked, { photoBlocked: true });
 
   await connectDB();
 

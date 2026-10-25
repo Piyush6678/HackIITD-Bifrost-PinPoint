@@ -32,7 +32,14 @@ export interface IIssue {
     distance: number;
     note?: string;
     // Gemini's before/after comparison, shown to residents as a second opinion.
-    ai?: { samePlace: boolean; looksFixed: boolean; confidence: "low" | "medium" | "high"; summary: string; at: Date };
+    ai?: {
+      matchPercent?: number;
+      samePlace: boolean;
+      looksFixed: boolean;
+      confidence: "low" | "medium" | "high";
+      summary: string;
+      at: Date;
+    };
   };
   // Fixes residents rejected. The photo stays so the failure can be shown as evidence.
   fixAttempts: {
@@ -114,6 +121,7 @@ const issueSchema = new Schema<IIssue, IssueModel>(
       note: { type: String, trim: true, maxlength: 500 },
       ai: {
         _id: false,
+        matchPercent: Number,
         samePlace: Boolean,
         looksFixed: Boolean,
         confidence: { type: String, enum: ["low", "medium", "high"] },

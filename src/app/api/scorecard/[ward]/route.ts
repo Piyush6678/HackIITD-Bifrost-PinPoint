@@ -1,4 +1,5 @@
 import { CATEGORY_RULES } from "@/lib/categories";
+import { connectDB } from "@/lib/db";
 import { HttpError, json, route } from "@/lib/http";
 import { fixAttempts, scoreIssues, scoreOfficer } from "@/lib/scorecard";
 import { loadIssues, officerProfiles, wardOfficerIds } from "@/lib/scorecardData";
@@ -13,7 +14,9 @@ export const GET = route(async (_req, ctx: RouteContext<"/api/scorecard/[ward]">
   const number = Number((await ctx.params).ward);
   if (!Number.isInteger(number)) throw new HttpError(404, "No such ward");
 
-  const ward = await Ward.findOne({ number }).select("number name zone").lean();
+  await connectDB();
+
+  const ward = await Ward.findOne({ number }).select("number name zone contacts").lean();
   if (!ward) throw new HttpError(404, `There's no ward ${number} in the pilot`);
 
   const issues = await loadIssues([ward._id]);
@@ -47,8 +50,15 @@ export const GET = route(async (_req, ctx: RouteContext<"/api/scorecard/[ward]">
       .lean(),
   ]);
 
+  // The elected councillor, from the ward's imported contacts. Name, role and where it came
+  // from only: phone numbers and emails stay in the admin page and the escalation drafts.
+  const councillor = ward.contacts?.find((c) => /councillor/i.test(c.department) && c.name);
+
   return json({
     ward: { number: ward.number, name: ward.name, zone: ward.zone },
+    councillor: councillor
+      ? { name: councillor.name!, role: councillor.department, source: councillor.source ?? null }
+      : null,
     generatedAt: now,
     metrics: scoreIssues(issues, now),
     officers,

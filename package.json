@@ -16,7 +16,8 @@
     "import:wards": "tsx --env-file=.env.local scripts/import-wards.ts",
     "import:roads": "tsx --env-file=.env.local scripts/import-roads.ts",
     "import:contacts": "tsx --env-file=.env.local scripts/import-contacts.ts",
-    "setup:monitors": "tsx --env-file=.env.local scripts/setup-monitors.ts"
+    "setup:monitors": "tsx --env-file=.env.local scripts/setup-monitors.ts",
+    "seed:demo": "tsx --env-file=.env.local scripts/seed-demo.ts"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",

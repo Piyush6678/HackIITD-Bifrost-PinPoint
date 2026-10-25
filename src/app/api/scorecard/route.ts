@@ -1,3 +1,4 @@
+import { connectDB } from "@/lib/db";
 import { json, route } from "@/lib/http";
 import { compareWards, scoreIssues, type Metrics } from "@/lib/scorecard";
 import { loadIssues } from "@/lib/scorecardData";
@@ -13,6 +14,7 @@ const SORTS: Record<"acceptance" | "speed" | "overdue", (a: Metrics, b: Metrics)
 // Public: every pilot ward's record side by side.
 export const GET = route(async (req) => {
   const { sort } = scorecardSchema.parse(searchParams(req));
+  await connectDB();
 
   const [issues, wards] = await Promise.all([loadIssues(), Ward.find().select("number name zone").lean()]);
   const now = new Date();

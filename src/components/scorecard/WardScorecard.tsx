@@ -12,12 +12,14 @@ import { Alert } from "../ui/Alert";
 import { Button, buttonClasses } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Skeleton } from "../ui/Skeleton";
+import { Councillor } from "./Councillor";
 import { AcceptanceBar, SampleNote, Stat } from "./Stat";
 
 type Officer = { name: string; designation: string | null; current: boolean; metrics: OfficerMetrics };
 
-type Data = {
+export type WardCard = {
   ward: { number: number; name: string; zone: string };
+  councillor: { name: string; role: string; source: string | null } | null;
   generatedAt: string;
   metrics: Metrics;
   officers: Officer[];
@@ -29,7 +31,7 @@ type State =
   | { status: "loading" }
   | { status: "missing"; message: string }
   | { status: "error"; message: string }
-  | { status: "ready"; data: Data };
+  | { status: "ready"; data: WardCard };
 
 export function WardScorecard() {
   const { ward } = useParams<{ ward: string }>();
@@ -38,7 +40,7 @@ export function WardScorecard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    api<Data>(`/api/scorecard/${encodeURIComponent(ward)}`, { signal: controller.signal })
+    api<WardCard>(`/api/scorecard/${encodeURIComponent(ward)}`, { signal: controller.signal })
       .then((data) => setState({ status: "ready", data }))
       .catch((err) => {
         if (controller.signal.aborted) return;
@@ -97,6 +99,10 @@ export function WardScorecard() {
       <p className="mt-2 text-sm text-ink-soft">
         {m.reported} reported · {m.resolved} resolved · {m.open} still open
       </p>
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-2 rounded-md bg-mist px-3 py-2">
+        <span className="eyebrow text-ink-faint">Councillor</span>
+        <Councillor councillor={data.councillor} />
+      </div>
 
       <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label="Fixes accepted" value={formatPercent(m.acceptanceRate)} note="Share residents confirmed" />

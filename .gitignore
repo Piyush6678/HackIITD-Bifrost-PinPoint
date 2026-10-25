@@ -45,3 +45,5 @@ yarn-error.log*
 next-env.d.ts
 
 tests
+# demo logins (written by npm run seed:demo)
+login.md

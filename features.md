@@ -104,9 +104,10 @@ Everything up to and including the TinyFish data imports is built. The demo data
 - **Privacy:** nobody sees who voted; you only see your own vote.
 
 ### AI help (Gemini)
-- **Suggested details:** while you place the pin, Gemini looks at your photo and fills in a title, category and severity. It only fills what you haven't touched, and you can change all of it. If the photo doesn't look like a civic problem, you're told so.
-- **Photo check on fixes:** when an officer posts an after-photo, Gemini compares it with the original: is it the same spot, and does the problem look fixed? Residents see this in the "Is it fixed?" panel as a second opinion; their votes still decide.
-- **Never in the way:** without an API key, or if Gemini is slow or unsure, the app works exactly as it does without AI. Officers never wait for it.
+- **Suggested details:** while you place the pin, Gemini looks at your photo and fills in a title, category and severity. It only fills what you haven't touched, and you can change all of it. If the photo isn't of a civic problem, you're told why and asked to take a different one.
+- **Photo check on fixes:** when an officer posts an after-photo, Gemini compares it with the original before the fix is accepted. Unless it's at least 60% sure the photo shows this problem fixed at the same spot, the officer is told the score and asked to retake it. Residents see the result ("85% match") in the "Is it fixed?" panel; their votes still decide.
+- **No unsafe or off-topic photos:** report photos and after-photos with sexual or violent content, ones that are mainly personal information (IDs, documents, screens, close-up faces), and ones that aren't of a public place are refused, with the reason.
+- **Never a blocker:** without an API key, or if Gemini is slow or fails, nothing is refused and the app works as it does without AI.
 - **Measured:** what Gemini suggested is stored next to what the resident chose, and `npm run ai:accuracy` shows how often people kept it.
 
 ### Alerts (the bell)
@@ -198,7 +199,7 @@ Anything TinyFish brings in is shown in amber with its source and date, and a pe
 - **Stack:** Next.js 16 for the pages and the API, MongoDB with Mongoose, Zod validation, and Tailwind 4 with the pitch deck's colours and fonts.
 - **Geo:** `2dsphere` indexes for nearby, duplicate and ward lookups, and haversine distance for the 50 m and 300 m checks.
 - **Photos:** stored in their own collection, so map queries never load image bytes.
-- **Tests:** 126 tests in 13 suites against a real in-memory MongoDB, covering auth, issues, duplicates, reopening, categories, the proxy, officials, officer requests, the dashboard, fix rules, resident verification, Gemini (with a mocked SDK) and the scorecard maths.
+- **Tests:** 136 tests in 13 suites against a real in-memory MongoDB, covering auth, issues, duplicates, reopening, categories, the proxy, officials, officer requests, the dashboard, fix rules, resident verification, Gemini (with a mocked SDK) and the scorecard maths.
 
 ## Coming next
 | Phase | Feature |

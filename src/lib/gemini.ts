@@ -50,7 +50,19 @@ async function askForJson<T>(parts: Part[], jsonSchema: object, parse: z.ZodType
 const categoryList = CATEGORIES.map((c) => `- ${c}: ${CATEGORY_LABELS[c]}`).join("\n");
 const severityList = SEVERITY_LABELS.map((label, i) => `${i + 1} = ${label}`).join(", ");
 
+// What a photo must not be. Checked on every report photo and every after-photo.
+export const PHOTO_PROBLEMS = ["ok", "sexual", "violent", "private_info", "unrelated"] as const;
+export type PhotoProblem = (typeof PHOTO_PROBLEMS)[number];
+
+const photoCheckRule = `photoCheck, the first that applies:
+- "sexual": any nudity or sexual content.
+- "violent": gore, graphic injuries, or dead people or animals.
+- "private_info": the photo is mainly of personal information, such as an ID card, a document or letter, a bank card, a phone or computer screen, or a close-up of someone's face.
+- "unrelated": not a photo of a street or public place at all (selfies, memes, screenshots, indoor rooms, pets, random objects).
+- "ok": anything else. People or number plates in the background of a street scene are fine.`;
+
 const tagSchema = z.object({
+  photoCheck: z.enum(PHOTO_PROBLEMS),
   looksLikeCivicIssue: z.boolean(),
   category: z.enum(CATEGORIES),
   severity: z.number().int().min(1).max(5),
@@ -71,24 +83,28 @@ ${categoryList}
 Rate severity from 1 to 5 (${severityList}): how badly it affects people using the street, and any danger.
 Write a short, plain title a resident would write, under 60 characters, naming the problem and anything that locates it (for example "Deep pothole outside the metro gate").
 Set looksLikeCivicIssue to false if the photo doesn't show a public civic problem at all.
-Describe only the problem. Ignore people and number plates.`,
+Describe only the problem. Ignore people and number plates.
+${photoCheckRule}`,
       },
     ],
     {
       type: "object",
       properties: {
+        photoCheck: { type: "string", enum: [...PHOTO_PROBLEMS] },
         looksLikeCivicIssue: { type: "boolean" },
         category: { type: "string", enum: [...CATEGORIES] },
         severity: { type: "integer", minimum: 1, maximum: 5 },
         title: { type: "string" },
       },
-      required: ["looksLikeCivicIssue", "category", "severity", "title"],
+      required: ["photoCheck", "looksLikeCivicIssue", "category", "severity", "title"],
     },
     tagSchema,
   );
 }
 
 const compareSchema = z.object({
+  photoCheck: z.enum(PHOTO_PROBLEMS),
+  matchPercent: z.number().int().min(0).max(100),
   samePlace: z.boolean(),
   looksFixed: z.boolean(),
   confidence: z.enum(["low", "medium", "high"]),
@@ -97,7 +113,7 @@ const compareSchema = z.object({
 
 export type FixCheck = z.infer<typeof compareSchema>;
 
-// A second opinion for the residents voting on a fix. It never decides anything.
+// Checked before an officer's fix is accepted, then shown to the residents voting on it.
 export function compareFix({ before, after, category }: { before: Photo; after: Photo; category: Category }) {
   return askForJson(
     [
@@ -111,19 +127,23 @@ What a fixed result looks like: ${CATEGORY_RULES[category].verifyHint}
 Answer:
 - samePlace: do both photos show the same spot? Look at fixed landmarks such as kerbs, walls, poles, shop fronts and road markings, not the problem itself.
 - looksFixed: in the AFTER photo, does the problem from the BEFORE photo look properly fixed?
+- matchPercent: 0 to 100, how likely it is that the AFTER photo shows this same problem, at the same spot, now fixed. Keep it under 50 if it looks like a different place, the problem is still there, or the photo doesn't show the problem area.
 - confidence: how sure you are overall.
-- summary: one or two plain sentences for residents explaining what you see. Don't mention people or number plates.`,
+- summary: one or two plain sentences for residents explaining what you see. Don't mention people or number plates.
+Judge the AFTER photo for ${photoCheckRule}`,
       },
     ],
     {
       type: "object",
       properties: {
+        photoCheck: { type: "string", enum: [...PHOTO_PROBLEMS] },
+        matchPercent: { type: "integer", minimum: 0, maximum: 100 },
         samePlace: { type: "boolean" },
         looksFixed: { type: "boolean" },
         confidence: { type: "string", enum: ["low", "medium", "high"] },
         summary: { type: "string" },
       },
-      required: ["samePlace", "looksFixed", "confidence", "summary"],
+      required: ["photoCheck", "matchPercent", "samePlace", "looksFixed", "confidence", "summary"],
     },
     compareSchema,
   );

@@ -71,6 +71,7 @@ export function serializeIssueDetail(issue: IssueDoc, viewerId?: string) {
           // Advisory only; residents' votes decide.
           aiCheck: issue.fix.ai?.summary
             ? {
+                matchPercent: issue.fix.ai.matchPercent ?? null,
                 samePlace: issue.fix.ai.samePlace,
                 looksFixed: issue.fix.ai.looksFixed,
                 confidence: issue.fix.ai.confidence,

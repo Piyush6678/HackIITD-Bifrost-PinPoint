@@ -202,7 +202,10 @@ function AiCheck({ check }: { check: Check }) {
     <div className="mt-3 rounded-md border border-amber/30 bg-amber/8 px-3.5 py-2.5 text-sm">
       <p className="font-bold text-amber">
         AI photo check{doubt ? ": worth a closer look" : ""}
-        <span className="ml-1.5 font-mono text-[0.6875rem] font-normal text-ink-faint">{check.confidence} confidence</span>
+        <span className="ml-1.5 font-mono text-[0.6875rem] font-normal text-ink-faint">
+          {check.matchPercent !== null && `${check.matchPercent}% match · `}
+          {check.confidence} confidence
+        </span>
       </p>
       <p className="mt-1 text-ink">{check.summary}</p>
       <p className="mt-1 text-xs text-ink-faint">

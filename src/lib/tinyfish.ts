@@ -122,7 +122,8 @@ export async function startAgentRun(input: {
       url: input.url,
       goal: input.goal,
       output_schema: input.outputSchema,
-      agent_config: { max_steps: input.maxSteps ?? 60 },
+      // Custom step limits are a beta feature; most accounts must use TinyFish's default.
+      ...(input.maxSteps && { agent_config: { max_steps: input.maxSteps } }),
     }),
   });
   if (!run_id) throw new TinyFishError(error?.message ?? "TinyFish didn't start the run", 0, "not_started");

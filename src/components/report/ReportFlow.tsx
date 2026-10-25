@@ -19,8 +19,8 @@ export function ReportFlow() {
   const [place, setPlace] = useState<PickedPlace | null>(null);
   const [details, setDetails] = useState<ReportDetails>(EMPTY_DETAILS);
   const [created, setCreated] = useState<{ issue: PublicIssue; reopenedAfterDays: number | null } | null>(null);
-  // What Gemini suggested for the current photo, keyed by its URL so a retake drops it.
-  const [ai, setAi] = useState<{ url: string; tags: PhotoTags } | null>(null);
+  // What Gemini made of the current photo, keyed by its URL so a retake drops it.
+  const [ai, setAi] = useState<{ url: string; tags: PhotoTags | null; blocked: string | null } | null>(null);
 
   // Blob URLs hold the image in memory until revoked.
   useEffect(
@@ -36,10 +36,14 @@ export function ReportFlow() {
     const controller = new AbortController();
     const body = new FormData();
     body.set("photo", photo.file, photo.file.name);
-    api<{ suggestion: PhotoTags | null }>("/api/ai/tag", { method: "POST", body, signal: controller.signal })
-      .then(({ suggestion }) => {
+    api<{ suggestion: PhotoTags | null; blocked: string | null }>("/api/ai/tag", {
+      method: "POST",
+      body,
+      signal: controller.signal,
+    })
+      .then(({ suggestion, blocked }) => {
+        setAi({ url: photo.url, tags: suggestion, blocked });
         if (!suggestion) return;
-        setAi({ url: photo.url, tags: suggestion });
         // Only fill what the resident hasn't touched.
         setDetails((d) => ({
           ...d,
@@ -91,6 +95,8 @@ export function ReportFlow() {
             details={details}
             onChange={setDetails}
             suggestion={ai?.url === photo.url ? ai.tags : null}
+            blocked={ai?.url === photo.url ? ai.blocked : null}
+            onRetake={() => setStep(0)}
             onBack={() => setStep(1)}
             onCreated={(issue, reopenedAfterDays) => setCreated({ issue, reopenedAfterDays })}
           />

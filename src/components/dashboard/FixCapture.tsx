@@ -67,8 +67,8 @@ export function FixCapture({ issue, onCancel, onDone }: Props) {
       <div>
         <h3 className="font-serif text-lg font-bold text-ink">Mark as fixed</h3>
         <p className="mt-1 text-sm text-ink-soft">
-          Stand where the problem was and take a photo of the finished work. Residents nearby will compare it with
-          the original and confirm or reject the fix.
+          Stand where the problem was and take a photo of the finished work. An AI first checks it matches the
+          reported problem, then residents nearby compare it with the original and confirm or reject the fix.
         </p>
       </div>
 
@@ -103,6 +103,7 @@ export function FixCapture({ issue, onCancel, onDone }: Props) {
       />
 
       {error && <Alert>{error}</Alert>}
+      {pending && <p className="text-xs text-ink-faint">Checking the photo against the report…</p>}
 
       <div className="flex gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={pending}>

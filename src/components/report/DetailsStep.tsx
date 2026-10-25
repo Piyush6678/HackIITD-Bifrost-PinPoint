@@ -33,11 +33,14 @@ type Props = {
   onChange: (details: ReportDetails) => void;
   // Gemini's reading of the photo, if it gave one.
   suggestion: PhotoTags | null;
+  // Why the photo would be refused, if Gemini flagged it.
+  blocked: string | null;
+  onRetake: () => void;
   onBack: () => void;
   onCreated: (issue: PublicIssue, reopenedAfterDays: number | null) => void;
 };
 
-export function DetailsStep({ photo, place, details, onChange, suggestion, onBack, onCreated }: Props) {
+export function DetailsStep({ photo, place, details, onChange, suggestion, blocked, onRetake, onBack, onCreated }: Props) {
   const router = useRouter();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +124,15 @@ export function DetailsStep({ photo, place, details, onChange, suggestion, onBac
       <form onSubmit={onSubmit} noValidate className="mt-5 flex flex-col gap-5">
         {error && <Alert>{error}</Alert>}
 
+        {blocked && (
+          <div className="flex flex-col items-start gap-3">
+            <Alert>{blocked}</Alert>
+            <Button variant="secondary" onClick={onRetake}>
+              Take a different photo
+            </Button>
+          </div>
+        )}
+
         {suggestion &&
           (suggestion.looksLikeCivicIssue ? (
             <p className="rounded-md border border-amber/30 bg-amber/8 px-3.5 py-2.5 text-sm text-ink">
@@ -178,7 +190,7 @@ export function DetailsStep({ photo, place, details, onChange, suggestion, onBac
           <Button variant="secondary" onClick={onBack} disabled={pending}>
             Back
           </Button>
-          <Button type="submit" className="flex-1" loading={pending} disabled={duplicate !== null}>
+          <Button type="submit" className="flex-1" loading={pending} disabled={duplicate !== null || blocked !== null}>
             Submit report
           </Button>
         </div>

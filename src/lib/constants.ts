@@ -40,6 +40,8 @@ export const NEARBY_MAX_RADIUS_M = 2000;
 export const FIX_RADIUS_M = 50000;
 export const FIX_MAX_ACCURACY_M = 300;
 export const FIX_PHOTO_MAX_AGE_MIN = 15;
+// Gemini's estimate that the after-photo shows this problem fixed. Below it, the fix is refused.
+export const FIX_MIN_MATCH_PERCENT = 60;
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];

@@ -44,7 +44,7 @@ We are building in phases. This README documents what exists today.
 | **17** | **Alerts: bell, notifications, live stream with polling fallback** | **Done** |
 | **18** | **Escalation: evidence pack, councillor petition, RTI draft** | **Done** |
 | **19** | **TinyFish: official ward data, road ownership, contacts, notices** | **Done** |
-| 20 | Demo data, polish, demo script | Next |
+| **20** | **Demo data, home-screen install, demo script** | **Done** |
 
 ---
 
@@ -77,6 +77,7 @@ We are building in phases. This README documents what exists today.
 npm install
 cp .env.example .env.local   # then fill in the values below
 npm run seed:wards           # loads the pilot wards and builds geo indexes
+npm run seed:demo            # optional: demo accounts and 20 reports; logins in login.md
 npm run dev                  # http://localhost:3000
 ```
 
@@ -92,7 +93,7 @@ npm run dev                  # http://localhost:3000
 | `TINYFISH_WEBHOOK_SECRET` | Phase 19 | Secret in the webhook address the monitors report to. TinyFish doesn't sign webhooks, so this is the only check. |
 | `CRON_SECRET` | Phase 19 | Sent as `Authorization: Bearer ...` to `/api/cron/notices`, which polls the monitors when webhooks can't reach us |
 | `APP_URL` | Phase 19 | Public `https://` address of the site, used by `npm run setup:monitors` to build the webhook address |
-| `DEMO_PASSWORD` | Phase 10 | Password for the demo officer and admin accounts made by `npm run seed:officials` |
+| `DEMO_PASSWORD` | Phase 10 | Password for every demo account made by `npm run seed:officials` and `npm run seed:demo` |
 
 `.env.local` is git-ignored. Never commit real keys.
 
@@ -111,6 +112,7 @@ npm run dev                  # http://localhost:3000
 | `npm run import:contacts` | Asks a TinyFish agent for each ward's councillor and RTI officers. |
 | `npm run setup:monitors` | Creates the TinyFish monitors for official notices. Run once. |
 | `npm run seed:officials` | Create one demo officer per pilot ward plus an admin (`*@pinpoint.test`). Uses `DEMO_PASSWORD`, and re-running resets their password to it. |
+| `npm run seed:demo` | The full demo: officers, admin, 12 residents, 20 reports across Wards 76, 78, 79 and 80 in every state (overdue, failed fixes, reopened, awaiting votes, verified), alerts and officer requests. Re-running replaces only what it made. Writes the logins and a demo walkthrough to `login.md` (gitignored). |
 | `npm run set-role -- --email … --role official --ward 78` | Make an account an official (or `--role admin` / `--role citizen`). Officials need a government email unless you add `--any-domain`. |
 
 The first `npm test` downloads a MongoDB binary, so it is slower than later runs.
@@ -170,7 +172,7 @@ src/
     officerRequests.ts     request shape, reviewRequest (approve or reject, safe against double clicks)
     compressPhoto.ts       in-browser photo compression (about 120 KB JPEG, 1600 px max)
     gemini.ts              tagPhoto and compareFix, both null on any failure
-    fixCheck.ts            runs compareFix after an officer posts a fix, saves it on the issue
+    photoScreen.ts         turns Gemini verdicts into refusals: unsafe photos, under 60% fix match
     location.ts            one browser GPS reading (used by the verify screens)
     scorecard.ts           scorecard maths: fix attempts, medians, acceptance rate
     scorecardData.ts       loads issues and public officer profiles for the scorecard
@@ -289,7 +291,7 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 | --- | --- | --- |
 | GET | `/api/photos/:id` | Raw image, served with `Cache-Control: immutable` |
 | GET | `/api/wards` | Pilot wards. Add `?boundary=true` to include the GeoJSON polygons. |
-| POST | `/api/ai/tag` | Logged in, 20 an hour. Multipart `photo`. Returns `{ suggestion: { looksLikeCivicIssue, category, severity, title } \| null }`. `null` when AI is off or the call fails. |
+| POST | `/api/ai/tag` | Logged in, 20 an hour. Multipart `photo`. Returns `{ suggestion: { photoCheck, looksLikeCivicIssue, category, severity, title } \| null, blocked: string \| null }`. `suggestion` is `null` when AI is off, the call fails or the photo is blocked; `blocked` says why it would be refused. |
 | GET | `/api/notifications` | Logged in. Query: `unread=true` for unread only. Returns the latest 30 as `{ notifications, unreadCount }`. Always the caller's own. |
 | POST | `/api/notifications/read` | Logged in. `{ all: true }` or `{ ids: [...] }`. Only touches the caller's own notifications. Returns `{ updated, unreadCount }`. |
 | GET | `/api/stream` | Logged in. Server-Sent Events (`text/event-stream`): a `notification` event for each new notification, a `: ping` comment every 25 s, and `unavailable` if the change stream can't run. |
@@ -350,7 +352,7 @@ Errors: 403 if the issue isn't in your ward, 409 if the issue has already moved 
 npm test
 ```
 
-126 tests across thirteen suites. The API suites run against a real MongoDB replica set in memory:
+136 tests across thirteen suites. The API suites run against a real MongoDB replica set in memory:
 
 - **geo:** distance accuracy, GeoJSON round trip, point-in-polygon (including holes)
 - **duplicates:** 49 m matches and 51 m doesn't; other categories and resolved issues are ignored; ward lookup
@@ -362,7 +364,7 @@ npm test
 - **dashboard:** queue ranking, own ward only (officials can't peek with `?ward=`), admins choosing a ward, status counts; starting work, never setting resolved, other wards and admins refused, an after-photo 80 m away refused (and not stored), rough GPS and old photos refused, a double press only moving the issue once
 - **verification:** 3 confirms verify a fix and 3 rejects send it back to the officer (whichever comes first); failed attempts are counted and kept after a later success; one vote per person; staff and the posting officer refused; 300 m and GPS-accuracy checks; votes only while waiting; five people voting at once settle it exactly once; each viewer sees only their own vote; a verified issue still reopens if the problem comes back; streetlights only after dark (IST)
 - **officerRequests:** asking doesn't grant anything, one pending request at a time, withdrawing, approving (and correcting the ward), vouching for a non-government email, rejecting with a reason the applicant sees, no second decision
-- **gemini:** structured replies parsed, bad or slow replies and a missing key give `null`, `/api/ai/tag` needs a login and is rate limited, the before/after check is stored and shown with the fix, never blocks or breaks it, and isn't attached to a newer after-photo (SDK mocked)
+- **gemini:** structured replies parsed, bad or slow replies and a missing key give `null`, `/api/ai/tag` needs a login, is rate limited and says why a photo would be blocked; sexual, violent, private and unrelated report photos refused with nothing stored, the tag verdict reused on submit, reports let through when the model fails; after-photos under 60% refused (exactly 60% accepted), unsafe after-photos refused, the comparison shown with the fix, and fixes let through when the model fails (SDK mocked)
 - **scorecard:** medians refuse fewer than 3 points, fix attempts read from a history, ward and officer metrics, dashes until there's enough data, the public ranking, a ward's officers without emails, 404 outside the pilot
 - **officials:** government email check, promoting and demoting, admin-only API, roles read from the database rather than a stale cookie, `/me` re-issuing the cookie after a role change
 
@@ -586,11 +588,15 @@ Tailwind only generates classes it can find in the source, so colour classes are
 
 ---
 
-## Gemini (advisory only)
+## Gemini
 
-- **Off by default.** With no `GEMINI_API_KEY`, `tagPhoto` and `compareFix` return `null` and the app works exactly as before. Any failure (timeout after 12 s, a reply that doesn't match the Zod schema) is also `null`.
-- **Report tagging:** while the resident places the pin, the photo goes to `POST /api/ai/tag`. The details step is pre-filled with the suggested title, category and severity, but only fields the resident hasn't touched. A photo that doesn't look like a civic problem gets a note instead. What the AI suggested is saved next to what the resident chose (`aiSuggestion`, `userChoice`); `npm run ai:accuracy` reports how often people kept it.
-- **Before/after check:** when an officer posts a fix, `checkFix` runs after the response is sent (`after()` from `next/server`), so the officer never waits. It asks whether both photos show the same spot and whether the problem looks fixed, and saves the answer as `fix.ai` only if that after-photo is still the current one. The "Is it fixed?" panel shows it as "AI photo check", worded as a second opinion. Residents' votes still decide.
+- **Off by default.** With no `GEMINI_API_KEY`, `tagPhoto` and `compareFix` return `null` and the app works exactly as before. Any failure (timeout after 12 s, a reply that doesn't match the Zod schema) is also `null`, and nothing is blocked: the GPS and time checks and residents' votes still apply.
+- **Report tagging:** while the resident places the pin, the photo goes to `POST /api/ai/tag`. The details step is pre-filled with the suggested title, category and severity, but only fields the resident hasn't touched. A photo Gemini flags is refused with the reason and a "Take a different photo" button. What the AI suggested is saved next to what the resident chose (`aiSuggestion`, `userChoice`); `npm run ai:accuracy` reports how often people kept it.
+- **Photo screening** (`lib/photoScreen.ts`): every report photo and after-photo gets a `photoCheck` of `ok`, `sexual`, `violent`, `private_info` (mainly an ID, document, screen or close-up face) or `unrelated` (selfies, memes, screenshots, indoor rooms). Anything but `ok` is refused with a 422, and so is a report photo with `looksLikeCivicIssue: false`.
+  - The check runs on the server inside `POST /api/issues`, so skipping the tag call doesn't get round it. The verdict from `/api/ai/tag` is cached by the photo's SHA-256 for 30 minutes, so submitting the same photo doesn't ask Gemini again.
+- **Before/after check:** when an officer posts a fix, `compareFix` runs before anything is saved. It returns `matchPercent` (0–100, how likely the after-photo shows this problem fixed at the same spot), `samePlace`, `looksFixed`, a summary, and the `photoCheck`. Below `FIX_MIN_MATCH_PERCENT` (60) the fix is refused with the score in the message ("59% match, 60% needed") and nothing is stored. Otherwise the result is saved as `fix.ai`, and the "Is it fixed?" panel shows it as "AI photo check" with the match. Residents' votes still decide.
+  - The officer waits for the check (up to 12 s), and the form says so while it runs.
+  - `matchPercent` is the model's own estimate, not a calibrated probability. Treat 60 as a setting to tune with real photos.
 
 ---
 

@@ -1,13 +1,12 @@
 import type { UpdateQuery } from "mongoose";
-import { after } from "next/server";
 import { FIX_MAX_ACCURACY_M, FIX_PHOTO_MAX_AGE_MIN, FIX_RADIUS_M, type Status } from "@/lib/constants";
-import { checkFix } from "@/lib/fixCheck";
-import { geminiEnabled } from "@/lib/gemini";
+import { compareFix } from "@/lib/gemini";
 import { notifyFixPosted, notifyWorkStarted } from "@/lib/notifications";
 import { distanceInMetres, fromGeoPoint, toGeoPoint } from "@/lib/geo";
 import { HttpError, json, route } from "@/lib/http";
 import { requireStaff } from "@/lib/officials";
 import { formFields, readPhoto } from "@/lib/photos";
+import { fixBlock } from "@/lib/photoScreen";
 import { rateLimit } from "@/lib/rateLimit";
 import { serializeIssueDetail } from "@/lib/serialize";
 import { objectId, statusChangeSchema } from "@/lib/validators";
@@ -32,7 +31,7 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/issues/[id]/statu
   });
   const input = statusChangeSchema.parse(formFields(form));
 
-  const issue = await Issue.findById(id).select("ward status location").lean();
+  const issue = await Issue.findById(id).select("ward status location photo category").lean();
   if (!issue) throw new HttpError(404, "Issue not found");
   if (!officer.ward || String(issue.ward) !== String(officer.ward)) {
     throw new HttpError(403, "This issue isn't in your ward");
@@ -70,11 +69,42 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/issues/[id]/statu
     }
 
     const photo = await readPhoto(form);
+    // Compared with the report photo before anything is saved. Unsafe photos, and ones
+    // that don't look like this problem fixed, are refused.
+    // Not lean: a lean read gives a BSON Binary, which Buffer.from() turns into zero bytes.
+    const before = await Photo.findById(issue.photo).select("data mimeType");
+    const check = before
+      ? await compareFix({
+          before: { data: before.data, mimeType: before.mimeType },
+          after: photo,
+          category: issue.category,
+        })
+      : null;
+    const blocked = fixBlock(check);
+    if (blocked) throw new HttpError(422, blocked, { matchPercent: check?.matchPercent ?? null });
+
     photoId = (await Photo.create({ ...photo, uploadedBy: officer._id }))._id;
     update.$set = {
       ...update.$set,
       resolutionPhoto: photoId,
-      fix: { by: officer._id, at: now, location: toGeoPoint(device), accuracy: input.accuracy, distance, note: input.note },
+      fix: {
+        by: officer._id,
+        at: now,
+        location: toGeoPoint(device),
+        accuracy: input.accuracy,
+        distance,
+        note: input.note,
+        ...(check && {
+          ai: {
+            matchPercent: check.matchPercent,
+            samePlace: check.samePlace,
+            looksFixed: check.looksFixed,
+            confidence: check.confidence,
+            summary: check.summary,
+            at: now,
+          },
+        }),
+      },
       // A fresh round of residents' votes for this fix.
       "verification.confirms": [],
       "verification.rejects": [],
@@ -96,9 +126,5 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/issues/[id]/statu
   }
   if (input.status === "in_progress") await notifyWorkStarted(updated, input.note);
   else await notifyFixPosted(updated);
-  if (photoId && geminiEnabled()) {
-    const afterPhoto = photoId;
-    after(() => checkFix(id, afterPhoto));
-  }
   return json({ issue: serializeIssueDetail(updated) });
 });
